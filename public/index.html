@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Gestão local de projetos prioritários por área técnica." />
     <title>Pauta Técnica</title>
-    <link rel="stylesheet" href="/styles.css?v=20260817-4" />
+    <link rel="stylesheet" href="/styles.css?v=20260817-5" />
   </head>
   <body>
     <header class="app-header">
@@ -170,45 +170,47 @@
           </button>
         </div>
 
-        <section class="filter-card totals-filter-card" aria-labelledby="totals-filter-title">
-          <div class="filter-heading">
+        <div class="totals-overview-row">
+          <div class="total-hero">
             <div>
-              <span class="section-kicker">Filtros da totalização</span>
-              <h2 id="totals-filter-title">Refine os indicadores</h2>
+              <span class="section-kicker light">Total geral</span>
+              <strong id="grand-total">0</strong>
+              <p id="grand-total-caption">projetos prioritários registrados</p>
             </div>
-            <button id="clear-totals-filters" class="text-button" type="button">Limpar filtros</button>
+            <span class="hero-decoration" aria-hidden="true"><i></i><i></i><i></i></span>
           </div>
-          <form id="totals-filter-form" class="total-filter-grid">
-            <label class="field">
-              <span>Área técnica</span>
-              <select id="totals-filter-area" name="areaTecnica"><option value="">Todas as áreas</option></select>
-            </label>
-            <label class="field">
-              <span>Responsável</span>
-              <select id="totals-filter-responsavel" name="responsavel"><option value="">Todas as pessoas</option></select>
-            </label>
-            <label class="field">
-              <span>Parecer elaborado</span>
-              <select id="totals-filter-parecer" name="haParecer"><option value="">Todos os status</option></select>
-            </label>
-            <label class="field">
-              <span>Sugestão de emenda</span>
-              <select id="totals-filter-emenda" name="sugestaoEmenda"><option value="">Todas as opções</option></select>
-            </label>
-            <label class="field">
-              <span>Posicionamento</span>
-              <select id="totals-filter-posicionamento" name="posicionamento"><option value="">Todos os posicionamentos</option></select>
-            </label>
-          </form>
-        </section>
 
-        <div class="total-hero">
-          <div>
-            <span class="section-kicker light">Total geral</span>
-            <strong id="grand-total">0</strong>
-            <p id="grand-total-caption">projetos prioritários registrados</p>
-          </div>
-          <span class="hero-decoration" aria-hidden="true"><i></i><i></i><i></i></span>
+          <section class="filter-card totals-filter-card" aria-labelledby="totals-filter-title">
+            <div class="filter-heading">
+              <div>
+                <span class="section-kicker">Filtros da totalização</span>
+                <h2 id="totals-filter-title">Refine os indicadores</h2>
+              </div>
+              <button id="clear-totals-filters" class="text-button" type="button">Limpar filtros</button>
+            </div>
+            <form id="totals-filter-form" class="total-filter-grid">
+              <label class="field">
+                <span>Área técnica</span>
+                <select id="totals-filter-area" name="areaTecnica"><option value="">Todas as áreas</option></select>
+              </label>
+              <label class="field">
+                <span>Responsável</span>
+                <select id="totals-filter-responsavel" name="responsavel"><option value="">Todas as pessoas</option></select>
+              </label>
+              <label class="field">
+                <span>Parecer elaborado</span>
+                <select id="totals-filter-parecer" name="haParecer"><option value="">Todos os status</option></select>
+              </label>
+              <label class="field">
+                <span>Sugestão de emenda</span>
+                <select id="totals-filter-emenda" name="sugestaoEmenda"><option value="">Todas as opções</option></select>
+              </label>
+              <label class="field">
+                <span>Posicionamento</span>
+                <select id="totals-filter-posicionamento" name="posicionamento"><option value="">Todos os posicionamentos</option></select>
+              </label>
+            </form>
+          </section>
         </div>
 
         <div class="dashboard-layout">
@@ -372,6 +374,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260817-4"></script>
+    <script type="module" src="/app.js?v=20260817-5"></script>
   </body>
 </html>
