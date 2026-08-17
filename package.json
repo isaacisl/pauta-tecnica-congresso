@@ -1,0 +1,16 @@
+{
+  "name": "pauta-tecnica",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Aplicativo local para gestão de projetos prioritários por área técnica.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test",
+    "check": "node --check server.js && node --check lib/database.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

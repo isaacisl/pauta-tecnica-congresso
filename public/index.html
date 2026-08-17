@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Gestão local de projetos prioritários por área técnica." />
+    <title>Pauta Técnica</title>
+    <link rel="stylesheet" href="/styles.css?v=20260817-2" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-inner">
+        <a class="brand" href="#registros" aria-label="Pauta Técnica — página inicial">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          <span>
+            <strong>Pauta Técnica</strong>
+            <small>Projetos prioritários</small>
+          </span>
+        </a>
+
+        <nav class="main-nav" aria-label="Navegação principal">
+          <button class="nav-button is-active" type="button" data-view="records" aria-current="page">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm3 4h8M8 12h8M8 16h5" /></svg>
+            Registros
+          </button>
+          <button class="nav-button" type="button" data-view="totals">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7" /></svg>
+            Totalização
+          </button>
+        </nav>
+
+        <div class="local-status" title="Os dados ficam armazenados neste computador">
+          <span class="status-dot"></span>
+          Base local
+        </div>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section id="records-view" class="view" aria-labelledby="records-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Acompanhamento legislativo</p>
+            <h1 id="records-title">Projetos prioritários</h1>
+            <p class="page-description">Cadastre, consulte e atualize os posicionamentos das áreas técnicas.</p>
+          </div>
+          <div class="page-actions">
+            <button id="export-button" class="button button-secondary" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3" /></svg>
+              Exportar base
+            </button>
+            <button id="new-record-button" class="button button-primary" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+              Novo registro
+            </button>
+          </div>
+        </div>
+
+        <div class="summary-row" aria-live="polite">
+          <div class="summary-item">
+            <span class="summary-icon summary-icon-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h4" /></svg>
+            </span>
+            <span><strong id="total-records">0</strong><small>registros na base</small></span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-item">
+            <span class="summary-icon summary-icon-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+            </span>
+            <span><strong id="filtered-records">0</strong><small>registros exibidos</small></span>
+          </div>
+        </div>
+
+        <section class="filter-card" aria-labelledby="filter-title">
+          <div class="filter-heading">
+            <div>
+              <span class="section-kicker">Filtros</span>
+              <h2 id="filter-title">Encontre um registro</h2>
+            </div>
+            <button id="clear-filters" class="text-button" type="button">Limpar filtros</button>
+          </div>
+          <form id="filter-form" class="filter-grid">
+            <label class="field search-field">
+              <span>Buscar</span>
+              <span class="input-with-icon">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>
+                <input id="filter-q" name="q" type="search" placeholder="Projeto, ementa, comissão ou responsável" autocomplete="off" />
+              </span>
+            </label>
+            <label class="field">
+              <span>Área técnica</span>
+              <select id="filter-area" name="areaTecnica"><option value="">Todas as áreas</option></select>
+            </label>
+            <label class="field">
+              <span>Parecer elaborado</span>
+              <select id="filter-parecer" name="haParecer"><option value="">Todos os status</option></select>
+            </label>
+            <label class="field">
+              <span>Sugestão de emenda</span>
+              <select id="filter-emenda" name="sugestaoEmenda"><option value="">Todas as opções</option></select>
+            </label>
+            <label class="field">
+              <span>Posicionamento</span>
+              <select id="filter-posicionamento" name="posicionamento"><option value="">Todos os posicionamentos</option></select>
+            </label>
+          </form>
+        </section>
+
+        <section class="table-card" aria-labelledby="table-title">
+          <div class="table-heading">
+            <div>
+              <span class="section-kicker">Base de dados</span>
+              <h2 id="table-title">Lista de registros</h2>
+            </div>
+            <span id="record-count-label" class="count-pill">0 registros</span>
+          </div>
+
+          <div id="table-loading" class="loading-state" aria-live="polite">
+            <span class="spinner"></span>
+            Carregando registros…
+          </div>
+
+          <div id="table-wrapper" class="table-wrapper" hidden>
+            <table>
+              <thead>
+                <tr>
+                  <th>Área técnica</th>
+                  <th>Responsável</th>
+                  <th>Projeto</th>
+                  <th>Ementa</th>
+                  <th>Atual comissão</th>
+                  <th>Parecer</th>
+                  <th>Emenda</th>
+                  <th>Posicionamento</th>
+                  <th><span class="sr-only">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody id="records-body"></tbody>
+            </table>
+          </div>
+
+          <div id="empty-state" class="empty-state" hidden>
+            <span class="empty-illustration" aria-hidden="true">
+              <svg viewBox="0 0 72 72"><path d="M22 14h28a4 4 0 0 1 4 4v38H18V18a4 4 0 0 1 4-4Z" /><path d="M27 25h18M27 34h18M27 43h10" /><circle cx="52" cy="51" r="10" /><path d="M52 46v10M47 51h10" /></svg>
+            </span>
+            <h3 id="empty-title">Nenhum registro cadastrado</h3>
+            <p id="empty-description">Adicione o primeiro projeto prioritário para começar.</p>
+            <button id="empty-new-button" class="button button-primary" type="button">Adicionar registro</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="totals-view" class="view" aria-labelledby="totals-title" hidden>
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Visão consolidada</p>
+            <h1 id="totals-title">Totalização</h1>
+            <p class="page-description">Distribuição dos registros por área, parecer, emenda e posicionamento.</p>
+          </div>
+          <button id="totals-new-button" class="button button-primary" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            Novo registro
+          </button>
+        </div>
+
+        <div class="total-hero">
+          <div>
+            <span class="section-kicker light">Total geral</span>
+            <strong id="grand-total">0</strong>
+            <p>projetos prioritários registrados</p>
+          </div>
+          <span class="hero-decoration" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="dashboard-card area-card" aria-labelledby="area-total-title">
+            <div class="dashboard-card-heading">
+              <div>
+                <span class="section-kicker">Distribuição</span>
+                <h2 id="area-total-title">Por área técnica</h2>
+              </div>
+              <span class="card-icon card-icon-blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 19h16M7 19V9h3v10m4 0V5h3v14" /></svg>
+              </span>
+            </div>
+            <div id="area-totals" class="bar-list"></div>
+          </section>
+
+          <div class="status-column">
+            <section class="dashboard-card" aria-labelledby="parecer-total-title">
+              <div class="dashboard-card-heading compact">
+                <div><span class="section-kicker">Status</span><h2 id="parecer-total-title">Parecer elaborado</h2></div>
+                <span class="card-icon card-icon-amber" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M10 13h5M10 17h5" /></svg>
+                </span>
+              </div>
+              <div id="parecer-totals" class="mini-stat-list"></div>
+            </section>
+
+            <section class="dashboard-card" aria-labelledby="emenda-total-title">
+              <div class="dashboard-card-heading compact">
+                <div><span class="section-kicker">Status</span><h2 id="emenda-total-title">Sugestão de emenda</h2></div>
+                <span class="card-icon card-icon-purple" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M5 19h4L19 9l-4-4L5 15zM13 7l4 4" /></svg>
+                </span>
+              </div>
+              <div id="emenda-totals" class="mini-stat-list"></div>
+            </section>
+
+            <section class="dashboard-card" aria-labelledby="position-total-title">
+              <div class="dashboard-card-heading compact">
+                <div><span class="section-kicker">Status</span><h2 id="position-total-title">Posicionamento da área</h2></div>
+                <span class="card-icon card-icon-green" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" /></svg>
+                </span>
+              </div>
+              <div id="position-totals" class="mini-stat-list"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="record-dialog" class="record-dialog" aria-labelledby="dialog-title">
+      <form id="record-form" novalidate>
+        <div class="dialog-header">
+          <div>
+            <p id="dialog-kicker" class="eyebrow">Novo cadastro</p>
+            <h2 id="dialog-title">Adicionar registro</h2>
+            <p>Preencha as informações do projeto prioritário.</p>
+          </div>
+          <button id="close-dialog" class="icon-button" type="button" aria-label="Fechar">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <div class="dialog-body">
+          <input id="record-id" name="id" type="hidden" />
+          <div class="form-grid">
+            <label class="field">
+              <span>Área técnica <b aria-hidden="true">*</b></span>
+              <select id="field-area" name="areaTecnica" required><option value="">Selecione a área</option></select>
+              <small class="field-error" data-error-for="areaTecnica"></small>
+            </label>
+            <label class="field">
+              <span>Responsável <b aria-hidden="true">*</b></span>
+              <select id="field-responsavel" name="responsavel" required><option value="">Selecione o responsável</option></select>
+              <small class="field-error" data-error-for="responsavel"></small>
+            </label>
+            <label class="field form-span-2">
+              <span>Projeto <b aria-hidden="true">*</b></span>
+              <input id="field-projeto" name="projeto" type="text" maxlength="300" placeholder="Ex.: PL 1234/2026" required />
+              <small class="field-error" data-error-for="projeto"></small>
+            </label>
+            <label class="field form-span-2">
+              <span>Ementa <b aria-hidden="true">*</b></span>
+              <textarea id="field-ementa" name="ementa" rows="4" maxlength="6000" placeholder="Descreva brevemente o objeto do projeto" required></textarea>
+              <small class="field-error" data-error-for="ementa"></small>
+            </label>
+            <label class="field form-span-2">
+              <span>Atual comissão <b aria-hidden="true">*</b></span>
+              <input id="field-comissao" name="atualComissao" type="text" maxlength="300" placeholder="Informe a comissão atual" required />
+              <small class="field-error" data-error-for="atualComissao"></small>
+            </label>
+            <label class="field">
+              <span>Há parecer elaborado? <b aria-hidden="true">*</b></span>
+              <select id="field-parecer" name="haParecer" required><option value="">Selecione</option></select>
+              <small class="field-error" data-error-for="haParecer"></small>
+            </label>
+            <label class="field">
+              <span>Sugestão de emenda <b aria-hidden="true">*</b></span>
+              <select id="field-emenda" name="sugestaoEmenda" required><option value="">Selecione</option></select>
+              <small class="field-error" data-error-for="sugestaoEmenda"></small>
+            </label>
+            <label class="field form-span-2">
+              <span>Posicionamento da área técnica <b aria-hidden="true">*</b></span>
+              <select id="field-posicionamento" name="posicionamento" required><option value="">Selecione</option></select>
+              <small class="field-error" data-error-for="posicionamento"></small>
+            </label>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button id="delete-record" class="button button-danger" type="button" hidden>Excluir registro</button>
+          <span class="footer-spacer"></span>
+          <button id="cancel-dialog" class="button button-ghost" type="button">Cancelar</button>
+          <button id="save-record" class="button button-primary" type="submit">
+            <span class="button-label">Salvar registro</span>
+            <span class="button-loading" hidden><span class="spinner spinner-small"></span> Salvando…</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="export-dialog" class="record-dialog export-dialog" aria-labelledby="export-dialog-title">
+      <form id="export-form" novalidate>
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Acesso protegido</p>
+            <h2 id="export-dialog-title">Exportar base</h2>
+            <p>Informe a senha de autorização para baixar os registros.</p>
+          </div>
+          <button id="close-export-dialog" class="icon-button" type="button" aria-label="Fechar">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+        <div class="dialog-body">
+          <div class="export-lock" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
+          </div>
+          <label class="field">
+            <span>Senha para exportação <b aria-hidden="true">*</b></span>
+            <input id="export-password" name="password" type="password" autocomplete="current-password" placeholder="Digite a senha" required />
+            <small id="export-password-error" class="field-error"></small>
+          </label>
+          <p id="export-scope" class="export-scope"></p>
+        </div>
+        <div class="dialog-footer">
+          <span class="footer-spacer"></span>
+          <button id="cancel-export-dialog" class="button button-ghost" type="button">Cancelar</button>
+          <button id="confirm-export" class="button button-primary" type="submit">
+            <span class="button-label">Autorizar e exportar</span>
+            <span class="button-loading" hidden><span class="spinner spinner-small"></span> Exportando…</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+      <span class="toast-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+      </span>
+      <span id="toast-message"></span>
+    </div>
+
+    <script type="module" src="/app.js?v=20260817-2"></script>
+  </body>
+</html>
