@@ -112,6 +112,7 @@ function getFilters(url) {
   return {
     q: url.searchParams.get("q") ?? "",
     areaTecnica: url.searchParams.get("areaTecnica") ?? "",
+    responsavel: url.searchParams.get("responsavel") ?? "",
     haParecer: url.searchParams.get("haParecer") ?? "",
     sugestaoEmenda: url.searchParams.get("sugestaoEmenda") ?? "",
     posicionamento: url.searchParams.get("posicionamento") ?? ""
@@ -170,6 +171,11 @@ export async function startServer({
         return;
       }
 
+      if (pathname === "/api/filter-options" && request.method === "GET") {
+        send(response, 200, database.filterOptions());
+        return;
+      }
+
       if (pathname === "/api/records" && request.method === "GET") {
         const records = database.list(getFilters(url));
         send(response, 200, { records, count: records.length });
@@ -208,7 +214,7 @@ export async function startServer({
       }
 
       if (pathname === "/api/totals" && request.method === "GET") {
-        send(response, 200, database.totals());
+        send(response, 200, database.totals(getFilters(url)));
         return;
       }
 

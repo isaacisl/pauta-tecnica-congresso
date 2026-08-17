@@ -16,9 +16,9 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 
 - cadastro, edição e exclusão de registros;
 - listas de áreas, responsáveis e status baseadas na aba `Parâmetros` da planilha original;
-- filtros por área técnica, parecer, sugestão de emenda e posicionamento;
+- filtros por área técnica, responsável, parecer, sugestão de emenda e posicionamento;
 - busca por projeto, ementa, comissão ou responsável;
-- aba de totalização por área e pelos três campos de status;
+- aba de totalização filtrável, com quantidades e percentuais por área e pelos três campos de status;
 - exportação protegida por senha da base completa ou filtrada em CSV compatível com Excel.
 
 ## Persistência

@@ -44,6 +44,10 @@ test("disponibiliza os parâmetros extraídos da planilha", async () => {
   assert.equal(payload.areasTecnicas.length, 22);
   assert.equal(payload.responsaveis.length, 80);
   assert.deepEqual(payload.pareceres, ["Sim", "Não", "Em andamento"]);
+
+  const emptyFilterOptions = await (await request("/api/filter-options")).json();
+  assert.deepEqual(emptyFilterOptions.areasTecnicas, []);
+  assert.deepEqual(emptyFilterOptions.responsaveis, []);
 });
 
 test("valida, cria, filtra e edita registros", async () => {
@@ -63,7 +67,14 @@ test("valida, cria, filtra e edita registros", async () => {
   assert.equal(createResponse.status, 201);
   assert.equal(created.projeto, sampleRecord.projeto);
 
-  const filteredResponse = await request(`/api/records?areaTecnica=${encodeURIComponent("Educação")}&haParecer=${encodeURIComponent("Em andamento")}`);
+  const filterOptions = await (await request("/api/filter-options")).json();
+  assert.deepEqual(filterOptions.areasTecnicas, ["Educação"]);
+  assert.deepEqual(filterOptions.responsaveis, ["Beatriz Silva (Colaborador)"]);
+  assert.deepEqual(filterOptions.pareceres, ["Em andamento"]);
+  assert.deepEqual(filterOptions.emendas, ["Sim"]);
+  assert.deepEqual(filterOptions.posicionamentos, ["Favorável"]);
+
+  const filteredResponse = await request(`/api/records?areaTecnica=${encodeURIComponent("Educação")}&responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}&haParecer=${encodeURIComponent("Em andamento")}`);
   const filtered = await filteredResponse.json();
   assert.equal(filtered.count, 1);
   assert.equal(filtered.records[0].id, created.id);
@@ -81,8 +92,17 @@ test("totaliza e exporta a base em CSV compatível com Excel", async () => {
   const totalsResponse = await request("/api/totals");
   const totals = await totalsResponse.json();
   assert.equal(totals.total, 1);
+  assert.equal(totals.overallTotal, 1);
   assert.deepEqual(totals.byArea[0], { label: "Educação", count: 1 });
   assert.deepEqual(totals.byParecer[0], { label: "Sim", count: 1 });
+
+  const filteredTotals = await (await request(`/api/totals?responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}`)).json();
+  assert.equal(filteredTotals.total, 1);
+  assert.equal(filteredTotals.overallTotal, 1);
+
+  const emptyTotals = await (await request(`/api/totals?responsavel=${encodeURIComponent("Pessoa inexistente")}`)).json();
+  assert.equal(emptyTotals.total, 0);
+  assert.equal(emptyTotals.overallTotal, 1);
 
   const unauthorizedResponse = await request("/api/export.csv", {
     method: "POST",

@@ -1,8 +1,10 @@
 const state = {
   parameters: null,
+  filterOptions: null,
   records: [],
   totals: null,
   requestId: 0,
+  totalsRequestId: 0,
   toastTimer: null
 };
 
@@ -13,10 +15,18 @@ const elements = {
   filterForm: document.querySelector("#filter-form"),
   filterQ: document.querySelector("#filter-q"),
   filterArea: document.querySelector("#filter-area"),
+  filterResponsavel: document.querySelector("#filter-responsavel"),
   filterParecer: document.querySelector("#filter-parecer"),
   filterEmenda: document.querySelector("#filter-emenda"),
   filterPosicionamento: document.querySelector("#filter-posicionamento"),
   clearFilters: document.querySelector("#clear-filters"),
+  totalsFilterForm: document.querySelector("#totals-filter-form"),
+  totalsFilterArea: document.querySelector("#totals-filter-area"),
+  totalsFilterResponsavel: document.querySelector("#totals-filter-responsavel"),
+  totalsFilterParecer: document.querySelector("#totals-filter-parecer"),
+  totalsFilterEmenda: document.querySelector("#totals-filter-emenda"),
+  totalsFilterPosicionamento: document.querySelector("#totals-filter-posicionamento"),
+  clearTotalsFilters: document.querySelector("#clear-totals-filters"),
   exportButton: document.querySelector("#export-button"),
   newRecordButton: document.querySelector("#new-record-button"),
   emptyNewButton: document.querySelector("#empty-new-button"),
@@ -31,6 +41,7 @@ const elements = {
   emptyTitle: document.querySelector("#empty-title"),
   emptyDescription: document.querySelector("#empty-description"),
   grandTotal: document.querySelector("#grand-total"),
+  grandTotalCaption: document.querySelector("#grand-total-caption"),
   areaTotals: document.querySelector("#area-totals"),
   parecerTotals: document.querySelector("#parecer-totals"),
   emendaTotals: document.querySelector("#emenda-totals"),
@@ -107,11 +118,39 @@ function addOptions(select, values) {
   }
 }
 
+function replaceOptions(select, values) {
+  const previousValue = select.value;
+  const placeholder = select.options[0];
+  select.replaceChildren(placeholder);
+  addOptions(select, values);
+  if (values.includes(previousValue)) select.value = previousValue;
+  else select.value = "";
+}
+
+function availableInParameterOrder(parameterValues, availableValues) {
+  const available = new Set(availableValues);
+  return parameterValues.filter((value) => available.has(value));
+}
+
+function renderFilterOptions() {
+  if (!state.parameters || !state.filterOptions) return;
+  const options = {
+    areasTecnicas: availableInParameterOrder(state.parameters.areasTecnicas, state.filterOptions.areasTecnicas),
+    responsaveis: availableInParameterOrder(state.parameters.responsaveis, state.filterOptions.responsaveis),
+    pareceres: availableInParameterOrder(state.parameters.pareceres, state.filterOptions.pareceres),
+    emendas: availableInParameterOrder(state.parameters.emendas, state.filterOptions.emendas),
+    posicionamentos: availableInParameterOrder(state.parameters.posicionamentos, state.filterOptions.posicionamentos)
+  };
+
+  for (const select of [elements.filterArea, elements.totalsFilterArea]) replaceOptions(select, options.areasTecnicas);
+  for (const select of [elements.filterResponsavel, elements.totalsFilterResponsavel]) replaceOptions(select, options.responsaveis);
+  for (const select of [elements.filterParecer, elements.totalsFilterParecer]) replaceOptions(select, options.pareceres);
+  for (const select of [elements.filterEmenda, elements.totalsFilterEmenda]) replaceOptions(select, options.emendas);
+  for (const select of [elements.filterPosicionamento, elements.totalsFilterPosicionamento]) replaceOptions(select, options.posicionamentos);
+}
+
 function setupParameters() {
-  addOptions(elements.filterArea, state.parameters.areasTecnicas);
-  addOptions(elements.filterParecer, state.parameters.pareceres);
-  addOptions(elements.filterEmenda, state.parameters.emendas);
-  addOptions(elements.filterPosicionamento, state.parameters.posicionamentos);
+  renderFilterOptions();
 
   addOptions(document.querySelector("#field-area"), state.parameters.areasTecnicas);
   addOptions(document.querySelector("#field-responsavel"), state.parameters.responsaveis);
@@ -120,16 +159,33 @@ function setupParameters() {
   addOptions(document.querySelector("#field-posicionamento"), state.parameters.posicionamentos);
 }
 
-function currentFilters() {
-  const params = new URLSearchParams(new FormData(elements.filterForm));
+async function loadFilterOptions() {
+  state.filterOptions = await api("/api/filter-options");
+  renderFilterOptions();
+}
+
+function filtersFromForm(form) {
+  const params = new URLSearchParams(new FormData(form));
   for (const [key, value] of [...params.entries()]) {
     if (!String(value).trim()) params.delete(key);
   }
   return params;
 }
 
+function currentFilters() {
+  return filtersFromForm(elements.filterForm);
+}
+
+function currentTotalFilters() {
+  return filtersFromForm(elements.totalsFilterForm);
+}
+
 function hasActiveFilters() {
   return currentFilters().size > 0;
+}
+
+function hasActiveTotalFilters() {
+  return currentTotalFilters().size > 0;
 }
 
 function countText(value) {
@@ -228,21 +284,31 @@ function dotClass(label) {
   return classes[label] ?? "dot-purple";
 }
 
-function renderMiniStats(container, options, series) {
+function formatPercentage(count, total) {
+  if (!total) return "0%";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1
+  }).format(count / total);
+}
+
+function renderMiniStats(container, options, series, total) {
   const counts = valueMap(series);
   container.innerHTML = options
-    .map(
-      (label) => `
+    .map((label) => {
+      const count = counts.get(label) ?? 0;
+      return `
         <div class="mini-stat-item">
           <span class="mini-stat-label"><i class="mini-stat-dot ${dotClass(label)}"></i>${escapeHtml(label)}</span>
-          <strong>${counts.get(label) ?? 0}</strong>
+          <strong><span>${count}</span><small class="mini-stat-percent">${formatPercentage(count, total)}</small></strong>
         </div>
-      `
-    )
+      `;
+    })
     .join("");
 }
 
-function renderAreaTotals(series) {
+function renderAreaTotals(series, total) {
   const used = series.filter((item) => Number(item.count) > 0);
   if (!used.length) {
     elements.areaTotals.innerHTML = '<div class="dashboard-empty">Os totais por área aparecerão aqui após o primeiro cadastro.</div>';
@@ -254,7 +320,10 @@ function renderAreaTotals(series) {
     .map(
       (item) => `
         <div class="bar-item">
-          <div class="bar-item-head"><span>${escapeHtml(item.label)}</span><strong>${item.count}</strong></div>
+          <div class="bar-item-head">
+            <span>${escapeHtml(item.label)}</span>
+            <strong class="bar-item-metrics"><span>${item.count}</span><small class="bar-item-percent">${formatPercentage(Number(item.count), total)}</small></strong>
+          </div>
           <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width: ${(Number(item.count) / max) * 100}%"></div></div>
         </div>
       `
@@ -265,18 +334,26 @@ function renderAreaTotals(series) {
 function renderTotals() {
   if (!state.totals || !state.parameters) return;
   elements.grandTotal.textContent = state.totals.total;
-  elements.totalRecords.textContent = state.totals.total;
-  renderAreaTotals(state.totals.byArea);
-  renderMiniStats(elements.parecerTotals, state.parameters.pareceres, state.totals.byParecer);
-  renderMiniStats(elements.emendaTotals, state.parameters.emendas, state.totals.byEmenda);
-  renderMiniStats(elements.positionTotals, state.parameters.posicionamentos, state.totals.byPosicionamento);
+  elements.grandTotalCaption.textContent = hasActiveTotalFilters()
+    ? "projetos encontrados com os filtros aplicados"
+    : "projetos prioritários registrados";
+  elements.totalRecords.textContent = state.totals.overallTotal ?? state.totals.total;
+  renderAreaTotals(state.totals.byArea, state.totals.total);
+  renderMiniStats(elements.parecerTotals, state.parameters.pareceres, state.totals.byParecer, state.totals.total);
+  renderMiniStats(elements.emendaTotals, state.parameters.emendas, state.totals.byEmenda, state.totals.total);
+  renderMiniStats(elements.positionTotals, state.parameters.posicionamentos, state.totals.byPosicionamento, state.totals.total);
 }
 
 async function loadTotals() {
+  const requestId = ++state.totalsRequestId;
   try {
-    state.totals = await api("/api/totals");
+    const params = currentTotalFilters();
+    const totals = await api(`/api/totals${params.size ? `?${params}` : ""}`);
+    if (requestId !== state.totalsRequestId) return;
+    state.totals = totals;
     renderTotals();
   } catch (error) {
+    if (requestId !== state.totalsRequestId) return;
     showToast(error.message, "error");
   }
 }
@@ -366,6 +443,7 @@ function setSaving(saving) {
 }
 
 async function refreshData() {
+  await loadFilterOptions();
   await Promise.all([loadRecords(), loadTotals()]);
 }
 
@@ -414,6 +492,11 @@ async function deleteRecord() {
 function clearFilters() {
   elements.filterForm.reset();
   loadRecords({ showLoading: true });
+}
+
+function clearTotalsFilters() {
+  elements.totalsFilterForm.reset();
+  loadTotals();
 }
 
 function openExportDialog() {
@@ -506,8 +589,11 @@ function setupEvents() {
     searchTimer = window.setTimeout(() => loadRecords(), 260);
   });
   elements.filterForm.addEventListener("submit", (event) => event.preventDefault());
+  elements.totalsFilterForm.addEventListener("change", () => loadTotals());
+  elements.totalsFilterForm.addEventListener("submit", (event) => event.preventDefault());
 
   elements.clearFilters.addEventListener("click", clearFilters);
+  elements.clearTotalsFilters.addEventListener("click", clearTotalsFilters);
   elements.emptyNewButton.addEventListener("click", () => {
     if (elements.emptyNewButton.dataset.action === "clear") clearFilters();
     else openNewRecord();
@@ -565,7 +651,10 @@ function setupEvents() {
 async function init() {
   setupEvents();
   try {
-    state.parameters = await api("/api/parameters");
+    [state.parameters, state.filterOptions] = await Promise.all([
+      api("/api/parameters"),
+      api("/api/filter-options")
+    ]);
     setupParameters();
     await Promise.all([loadRecords({ showLoading: true }), loadTotals()]);
     showView(window.location.hash === "#totalizacao" ? "totals" : "records");

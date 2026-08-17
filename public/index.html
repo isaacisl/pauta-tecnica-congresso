@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Gestão local de projetos prioritários por área técnica." />
     <title>Pauta Técnica</title>
-    <link rel="stylesheet" href="/styles.css?v=20260817-2" />
+    <link rel="stylesheet" href="/styles.css?v=20260817-4" />
   </head>
   <body>
     <header class="app-header">
@@ -95,6 +95,10 @@
               <select id="filter-area" name="areaTecnica"><option value="">Todas as áreas</option></select>
             </label>
             <label class="field">
+              <span>Responsável</span>
+              <select id="filter-responsavel" name="responsavel"><option value="">Todas as pessoas</option></select>
+            </label>
+            <label class="field">
               <span>Parecer elaborado</span>
               <select id="filter-parecer" name="haParecer"><option value="">Todos os status</option></select>
             </label>
@@ -166,30 +170,49 @@
           </button>
         </div>
 
+        <section class="filter-card totals-filter-card" aria-labelledby="totals-filter-title">
+          <div class="filter-heading">
+            <div>
+              <span class="section-kicker">Filtros da totalização</span>
+              <h2 id="totals-filter-title">Refine os indicadores</h2>
+            </div>
+            <button id="clear-totals-filters" class="text-button" type="button">Limpar filtros</button>
+          </div>
+          <form id="totals-filter-form" class="total-filter-grid">
+            <label class="field">
+              <span>Área técnica</span>
+              <select id="totals-filter-area" name="areaTecnica"><option value="">Todas as áreas</option></select>
+            </label>
+            <label class="field">
+              <span>Responsável</span>
+              <select id="totals-filter-responsavel" name="responsavel"><option value="">Todas as pessoas</option></select>
+            </label>
+            <label class="field">
+              <span>Parecer elaborado</span>
+              <select id="totals-filter-parecer" name="haParecer"><option value="">Todos os status</option></select>
+            </label>
+            <label class="field">
+              <span>Sugestão de emenda</span>
+              <select id="totals-filter-emenda" name="sugestaoEmenda"><option value="">Todas as opções</option></select>
+            </label>
+            <label class="field">
+              <span>Posicionamento</span>
+              <select id="totals-filter-posicionamento" name="posicionamento"><option value="">Todos os posicionamentos</option></select>
+            </label>
+          </form>
+        </section>
+
         <div class="total-hero">
           <div>
             <span class="section-kicker light">Total geral</span>
             <strong id="grand-total">0</strong>
-            <p>projetos prioritários registrados</p>
+            <p id="grand-total-caption">projetos prioritários registrados</p>
           </div>
           <span class="hero-decoration" aria-hidden="true"><i></i><i></i><i></i></span>
         </div>
 
-        <div class="dashboard-grid">
-          <section class="dashboard-card area-card" aria-labelledby="area-total-title">
-            <div class="dashboard-card-heading">
-              <div>
-                <span class="section-kicker">Distribuição</span>
-                <h2 id="area-total-title">Por área técnica</h2>
-              </div>
-              <span class="card-icon card-icon-blue" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 19h16M7 19V9h3v10m4 0V5h3v14" /></svg>
-              </span>
-            </div>
-            <div id="area-totals" class="bar-list"></div>
-          </section>
-
-          <div class="status-column">
+        <div class="dashboard-layout">
+          <div class="status-row">
             <section class="dashboard-card" aria-labelledby="parecer-total-title">
               <div class="dashboard-card-heading compact">
                 <div><span class="section-kicker">Status</span><h2 id="parecer-total-title">Parecer elaborado</h2></div>
@@ -220,6 +243,19 @@
               <div id="position-totals" class="mini-stat-list"></div>
             </section>
           </div>
+
+          <section class="dashboard-card area-card" aria-labelledby="area-total-title">
+            <div class="dashboard-card-heading">
+              <div>
+                <span class="section-kicker">Distribuição</span>
+                <h2 id="area-total-title">Por área técnica</h2>
+              </div>
+              <span class="card-icon card-icon-blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 19h16M7 19V9h3v10m4 0V5h3v14" /></svg>
+              </span>
+            </div>
+            <div id="area-totals" class="bar-list"></div>
+          </section>
         </div>
       </section>
     </main>
@@ -336,6 +372,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260817-2"></script>
+    <script type="module" src="/app.js?v=20260817-4"></script>
   </body>
 </html>
