@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
-import { timingSafeEqual } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { randomUUID, timingSafeEqual } from "node:crypto";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDatabase, ValidationError } from "./lib/database.js";
@@ -10,6 +10,23 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(rootDir, "public");
 const defaultDatabasePath = path.join(rootDir, "data", "registros.sqlite");
 const exportPassword = process.env.EXPORT_PASSWORD || "CentralDeDados2026";
+const maxAttachmentSize = 20 * 1024 * 1024;
+
+const attachmentTypes = Object.freeze({
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".odt": "application/vnd.oasis.opendocument.text",
+  ".rtf": "application/rtf",
+  ".txt": "text/plain; charset=utf-8",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png"
+});
 
 const mimeTypes = Object.freeze({
   ".html": "text/html; charset=utf-8",
@@ -68,6 +85,65 @@ async function readJson(request) {
     const error = new Error("JSON inválido.");
     error.status = 400;
     throw error;
+  }
+}
+
+async function readBinary(request, maxSize = maxAttachmentSize) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxSize) {
+      const error = new Error("O arquivo deve ter no máximo 20 MB.");
+      error.status = 413;
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+  if (!size) {
+    const error = new Error("Selecione um arquivo para enviar.");
+    error.status = 400;
+    throw error;
+  }
+  return Buffer.concat(chunks);
+}
+
+function attachmentDetails(request) {
+  const encodedName = request.headers["x-file-name"];
+  if (typeof encodedName !== "string" || !encodedName) {
+    const error = new Error("Nome do arquivo não informado.");
+    error.status = 400;
+    throw error;
+  }
+
+  let decodedName;
+  try {
+    decodedName = decodeURIComponent(encodedName);
+  } catch {
+    const error = new Error("Nome do arquivo inválido.");
+    error.status = 400;
+    throw error;
+  }
+
+  const name = path.posix.basename(decodedName.replaceAll("\\", "/")).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  const extension = path.extname(name).toLowerCase();
+  if (!name || name.length > 255 || !attachmentTypes[extension]) {
+    const error = new Error("Formato não permitido. Use PDF, documentos do Office, texto ou imagem.");
+    error.status = 415;
+    throw error;
+  }
+  return { name, extension, mime: attachmentTypes[extension] };
+}
+
+async function removeStoredAttachment(uploadDirectory, storedName) {
+  if (!storedName) return;
+  const resolvedDirectory = path.resolve(uploadDirectory);
+  const filePath = path.resolve(uploadDirectory, storedName);
+  if (!filePath.startsWith(`${resolvedDirectory}${path.sep}`)) return;
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
   }
 }
 
@@ -155,6 +231,8 @@ export async function startServer({
   databasePath = process.env.DATABASE_PATH || defaultDatabasePath
 } = {}) {
   const database = createDatabase(databasePath);
+  const uploadDirectory = path.join(path.dirname(databasePath), "uploads");
+  await mkdir(uploadDirectory, { recursive: true });
 
   const server = createServer(async (request, response) => {
     try {
@@ -172,7 +250,7 @@ export async function startServer({
       }
 
       if (pathname === "/api/filter-options" && request.method === "GET") {
-        send(response, 200, database.filterOptions());
+        send(response, 200, database.filterOptions(getFilters(url)));
         return;
       }
 
@@ -186,6 +264,66 @@ export async function startServer({
         const record = database.create(await readJson(request));
         send(response, 201, { record });
         return;
+      }
+
+      const attachmentMatch = pathname.match(/^\/api\/records\/(\d+)\/attachment$/);
+      if (attachmentMatch) {
+        const id = Number(attachmentMatch[1]);
+        const record = database.get(id);
+        if (!record) {
+          sendError(response, 404, "Registro não encontrado.");
+          return;
+        }
+
+        if (request.method === "GET") {
+          const attachment = database.getAttachment(id);
+          if (!attachment) {
+            sendError(response, 404, "Este registro não possui arquivo.");
+            return;
+          }
+          try {
+            const file = await readFile(path.join(uploadDirectory, attachment.storedName));
+            const fallbackName = `arquivo${path.extname(attachment.name).toLowerCase()}`;
+            send(response, 200, file, attachment.mime || "application/octet-stream", {
+              "Content-Disposition": `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(attachment.name)}`
+            });
+          } catch (error) {
+            if (error.code === "ENOENT") sendError(response, 404, "Arquivo não encontrado no armazenamento.");
+            else throw error;
+          }
+          return;
+        }
+
+        if (request.method === "POST") {
+          const details = attachmentDetails(request);
+          const file = await readBinary(request);
+          const previousAttachment = database.getAttachment(id);
+          const storedName = `${randomUUID()}${details.extension}`;
+          const storedPath = path.join(uploadDirectory, storedName);
+          await writeFile(storedPath, file, { flag: "wx" });
+          try {
+            const updatedRecord = database.setAttachment(id, {
+              name: details.name,
+              storedName,
+              mime: details.mime,
+              size: file.length
+            });
+            await removeStoredAttachment(uploadDirectory, previousAttachment?.storedName);
+            send(response, 201, { record: updatedRecord });
+          } catch (error) {
+            await removeStoredAttachment(uploadDirectory, storedName);
+            throw error;
+          }
+          return;
+        }
+
+        if (request.method === "DELETE") {
+          const attachment = database.getAttachment(id);
+          const updatedRecord = database.clearAttachment(id);
+          await removeStoredAttachment(uploadDirectory, attachment?.storedName);
+          send(response, 200, { record: updatedRecord });
+          return;
+        }
       }
 
       const recordMatch = pathname.match(/^\/api\/records\/(\d+)$/);
@@ -207,8 +345,12 @@ export async function startServer({
         }
 
         if (request.method === "DELETE") {
+          const attachment = database.getAttachment(id);
           if (!database.remove(id)) sendError(response, 404, "Registro não encontrado.");
-          else send(response, 200, { deleted: true });
+          else {
+            await removeStoredAttachment(uploadDirectory, attachment?.storedName);
+            send(response, 200, { deleted: true });
+          }
           return;
         }
       }
@@ -248,8 +390,12 @@ export async function startServer({
         sendError(response, 422, error.message, error.fields);
         return;
       }
+      if (error.status) {
+        sendError(response, error.status, error.message);
+        return;
+      }
       console.error(error);
-      sendError(response, error.status ?? 500, error.status ? error.message : "Erro interno do servidor.");
+      sendError(response, 500, "Erro interno do servidor.");
     }
   });
 

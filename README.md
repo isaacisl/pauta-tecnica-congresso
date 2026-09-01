@@ -19,11 +19,13 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 - filtros por área técnica, responsável, parecer, sugestão de emenda e posicionamento;
 - busca por projeto, ementa, comissão ou responsável;
 - aba de totalização filtrável, com quantidades e percentuais por área e pelos três campos de status;
-- exportação protegida por senha da base completa ou filtrada em CSV compatível com Excel.
+- exportação protegida por senha da base completa ou filtrada em CSV compatível com Excel;
+- anexos opcionais em PDF, documentos do Office, texto ou imagem;
+- datas de inclusão e de última edição, além de proteção contra fechamento com alterações não salvas.
 
 ## Persistência
 
-A base é criada automaticamente em `data/registros.sqlite`. Mantenha esse arquivo para preservar os registros. Nenhum dado é enviado para a internet.
+A base é criada automaticamente em `data/registros.sqlite`, e os anexos ficam em `data/uploads/`. Ambos são ignorados pelo Git: atualizações de código não substituem esses dados. Para um backup completo, preserve o arquivo SQLite e a pasta de uploads. Nenhum dado é enviado para a internet.
 
 ## Verificação
 

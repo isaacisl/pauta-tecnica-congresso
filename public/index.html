@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Gestão local de projetos prioritários por área técnica." />
     <title>Pauta Técnica</title>
-    <link rel="stylesheet" href="/styles.css?v=20260817-5" />
+    <link rel="stylesheet" href="/styles.css?v=20260820-3" />
   </head>
   <body>
     <header class="app-header">
@@ -139,6 +139,7 @@
                   <th>Parecer</th>
                   <th>Emenda</th>
                   <th>Posicionamento</th>
+                  <th>Data de inclusão</th>
                   <th><span class="sr-only">Ações</span></th>
                 </tr>
               </thead>
@@ -303,6 +304,27 @@
               <input id="field-comissao" name="atualComissao" type="text" maxlength="300" placeholder="Informe a comissão atual" required />
               <small class="field-error" data-error-for="atualComissao"></small>
             </label>
+            <label class="field form-span-2 attachment-field">
+              <span>Arquivo <em>Opcional</em></span>
+              <input
+                id="field-attachment"
+                name="attachment"
+                type="file"
+                accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
+              />
+              <small class="field-help">PDF, Word, Excel, PowerPoint, texto ou imagem · máximo de 20 MB</small>
+            </label>
+            <div id="existing-attachment" class="existing-attachment form-span-2" hidden>
+              <span class="attachment-file-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M10 13h5M10 17h4" /></svg>
+              </span>
+              <span class="attachment-file-info">
+                <strong id="existing-attachment-name"></strong>
+                <small id="existing-attachment-size"></small>
+              </span>
+              <a id="download-attachment" class="text-button attachment-link" href="#">Baixar</a>
+              <button id="remove-attachment" class="text-button attachment-remove" type="button">Remover</button>
+            </div>
             <label class="field">
               <span>Há parecer elaborado? <b aria-hidden="true">*</b></span>
               <select id="field-parecer" name="haParecer" required><option value="">Selecione</option></select>
@@ -318,6 +340,27 @@
               <select id="field-posicionamento" name="posicionamento" required><option value="">Selecione</option></select>
               <small class="field-error" data-error-for="posicionamento"></small>
             </label>
+            <section id="record-history" class="record-history form-span-2" aria-labelledby="record-history-title" hidden>
+              <div class="record-history-heading">
+                <span class="record-history-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 7v5l3 2M4.9 5.1A9 9 0 1 1 3 12M3 5v5h5" /></svg>
+                </span>
+                <span>
+                  <strong id="record-history-title">Histórico do registro</strong>
+                  <small>Datas registradas automaticamente pelo sistema</small>
+                </span>
+              </div>
+              <dl class="record-history-dates">
+                <div>
+                  <dt>Incluído em</dt>
+                  <dd id="record-created-at"></dd>
+                </div>
+                <div id="record-edited-history" hidden>
+                  <dt>Última edição</dt>
+                  <dd id="record-edited-at"></dd>
+                </div>
+              </dl>
+            </section>
           </div>
         </div>
 
@@ -331,6 +374,29 @@
           </button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="discard-dialog" class="record-dialog discard-dialog" aria-labelledby="discard-dialog-title">
+      <div class="discard-dialog-content">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Alterações não salvas</p>
+            <h2 id="discard-dialog-title">Fechar formulário?</h2>
+            <p>Existem informações preenchidas que ainda não foram salvas.</p>
+          </div>
+          <span class="discard-warning-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01M10.3 4.9 3.2 17.2A2 2 0 0 0 4.9 20h14.2a2 2 0 0 0 1.7-2.8L13.7 4.9a2 2 0 0 0-3.4 0Z" /></svg>
+          </span>
+        </div>
+        <div class="dialog-body discard-dialog-body">
+          <p>Se fechar agora, as alterações feitas neste formulário serão descartadas.</p>
+        </div>
+        <div class="dialog-footer">
+          <span class="footer-spacer"></span>
+          <button id="keep-editing" class="button button-ghost" type="button">Continuar preenchendo</button>
+          <button id="confirm-discard" class="button button-danger" type="button">Fechar sem salvar</button>
+        </div>
+      </div>
     </dialog>
 
     <dialog id="export-dialog" class="record-dialog export-dialog" aria-labelledby="export-dialog-title">
@@ -374,6 +440,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260817-5"></script>
+    <script type="module" src="/app.js?v=20260820-3"></script>
   </body>
 </html>

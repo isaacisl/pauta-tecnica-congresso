@@ -1,11 +1,13 @@
 const state = {
   parameters: null,
-  filterOptions: null,
+  recordFilterOptions: null,
+  totalFilterOptions: null,
   records: [],
   totals: null,
   requestId: 0,
   totalsRequestId: 0,
-  toastTimer: null
+  toastTimer: null,
+  recordFormBaseline: ""
 };
 
 const elements = {
@@ -56,6 +58,19 @@ const elements = {
   saveRecord: document.querySelector("#save-record"),
   saveLabel: document.querySelector("#save-record .button-label"),
   saveLoading: document.querySelector("#save-record .button-loading"),
+  attachmentInput: document.querySelector("#field-attachment"),
+  existingAttachment: document.querySelector("#existing-attachment"),
+  existingAttachmentName: document.querySelector("#existing-attachment-name"),
+  existingAttachmentSize: document.querySelector("#existing-attachment-size"),
+  downloadAttachment: document.querySelector("#download-attachment"),
+  removeAttachment: document.querySelector("#remove-attachment"),
+  recordHistory: document.querySelector("#record-history"),
+  recordCreatedAt: document.querySelector("#record-created-at"),
+  recordEditedHistory: document.querySelector("#record-edited-history"),
+  recordEditedAt: document.querySelector("#record-edited-at"),
+  discardDialog: document.querySelector("#discard-dialog"),
+  keepEditing: document.querySelector("#keep-editing"),
+  confirmDiscard: document.querySelector("#confirm-discard"),
   exportDialog: document.querySelector("#export-dialog"),
   exportForm: document.querySelector("#export-form"),
   exportPassword: document.querySelector("#export-password"),
@@ -125,6 +140,7 @@ function replaceOptions(select, values) {
   addOptions(select, values);
   if (values.includes(previousValue)) select.value = previousValue;
   else select.value = "";
+  return Boolean(previousValue) && !values.includes(previousValue);
 }
 
 function availableInParameterOrder(parameterValues, availableValues) {
@@ -132,36 +148,47 @@ function availableInParameterOrder(parameterValues, availableValues) {
   return parameterValues.filter((value) => available.has(value));
 }
 
-function renderFilterOptions() {
-  if (!state.parameters || !state.filterOptions) return;
-  const options = {
-    areasTecnicas: availableInParameterOrder(state.parameters.areasTecnicas, state.filterOptions.areasTecnicas),
-    responsaveis: availableInParameterOrder(state.parameters.responsaveis, state.filterOptions.responsaveis),
-    pareceres: availableInParameterOrder(state.parameters.pareceres, state.filterOptions.pareceres),
-    emendas: availableInParameterOrder(state.parameters.emendas, state.filterOptions.emendas),
-    posicionamentos: availableInParameterOrder(state.parameters.posicionamentos, state.filterOptions.posicionamentos)
+function orderedFilterOptions(filterOptions) {
+  if (!state.parameters || !filterOptions) return null;
+  return {
+    areasTecnicas: availableInParameterOrder(state.parameters.areasTecnicas, filterOptions.areasTecnicas),
+    responsaveis: availableInParameterOrder(state.parameters.responsaveis, filterOptions.responsaveis),
+    pareceres: availableInParameterOrder(state.parameters.pareceres, filterOptions.pareceres),
+    emendas: availableInParameterOrder(state.parameters.emendas, filterOptions.emendas),
+    posicionamentos: availableInParameterOrder(state.parameters.posicionamentos, filterOptions.posicionamentos)
   };
+}
 
-  for (const select of [elements.filterArea, elements.totalsFilterArea]) replaceOptions(select, options.areasTecnicas);
-  for (const select of [elements.filterResponsavel, elements.totalsFilterResponsavel]) replaceOptions(select, options.responsaveis);
-  for (const select of [elements.filterParecer, elements.totalsFilterParecer]) replaceOptions(select, options.pareceres);
-  for (const select of [elements.filterEmenda, elements.totalsFilterEmenda]) replaceOptions(select, options.emendas);
-  for (const select of [elements.filterPosicionamento, elements.totalsFilterPosicionamento]) replaceOptions(select, options.posicionamentos);
+function renderRecordFilterOptions() {
+  const options = orderedFilterOptions(state.recordFilterOptions);
+  if (!options) return false;
+  return [
+    replaceOptions(elements.filterArea, options.areasTecnicas),
+    replaceOptions(elements.filterResponsavel, options.responsaveis),
+    replaceOptions(elements.filterParecer, options.pareceres),
+    replaceOptions(elements.filterEmenda, options.emendas),
+    replaceOptions(elements.filterPosicionamento, options.posicionamentos)
+  ].some(Boolean);
+}
+
+function renderTotalFilterOptions() {
+  const options = orderedFilterOptions(state.totalFilterOptions);
+  if (!options) return false;
+  return [
+    replaceOptions(elements.totalsFilterArea, options.areasTecnicas),
+    replaceOptions(elements.totalsFilterResponsavel, options.responsaveis),
+    replaceOptions(elements.totalsFilterParecer, options.pareceres),
+    replaceOptions(elements.totalsFilterEmenda, options.emendas),
+    replaceOptions(elements.totalsFilterPosicionamento, options.posicionamentos)
+  ].some(Boolean);
 }
 
 function setupParameters() {
-  renderFilterOptions();
-
   addOptions(document.querySelector("#field-area"), state.parameters.areasTecnicas);
   addOptions(document.querySelector("#field-responsavel"), state.parameters.responsaveis);
   addOptions(document.querySelector("#field-parecer"), state.parameters.pareceres);
   addOptions(document.querySelector("#field-emenda"), state.parameters.emendas);
   addOptions(document.querySelector("#field-posicionamento"), state.parameters.posicionamentos);
-}
-
-async function loadFilterOptions() {
-  state.filterOptions = await api("/api/filter-options");
-  renderFilterOptions();
 }
 
 function filtersFromForm(form) {
@@ -220,10 +247,24 @@ function renderRecords() {
         return `<td data-label="${escapeHtml(label)}">${content}</td>`;
       });
       cells.push(`
+        <td data-label="Data de inclusão">
+          <time class="table-date" datetime="${escapeHtml(record.createdAt)}" title="${escapeHtml(formatDateTime(record.createdAt))}">
+            ${escapeHtml(formatDate(record.createdAt))}
+          </time>
+        </td>
+      `);
+      cells.push(`
         <td data-label="Ações">
-          <button class="row-action" type="button" data-edit-id="${record.id}" aria-label="Editar ${escapeHtml(record.projeto)}" title="Editar registro">
-            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" /></svg>
-          </button>
+          <span class="row-actions">
+            ${record.attachmentName ? `
+              <a class="row-action attachment-action" href="/api/records/${record.id}/attachment" aria-label="Baixar ${escapeHtml(record.attachmentName)}" title="Baixar ${escapeHtml(record.attachmentName)}">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 12.5 14.5 6a3 3 0 0 1 4.2 4.2l-8.2 8.2a5 5 0 0 1-7.1-7.1l8-8" /></svg>
+              </a>
+            ` : ""}
+            <button class="row-action" type="button" data-edit-id="${record.id}" aria-label="Editar ${escapeHtml(record.projeto)}" title="Editar registro">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" /></svg>
+            </button>
+          </span>
         </td>
       `);
       return `<tr>${cells.join("")}</tr>`;
@@ -257,8 +298,17 @@ async function loadRecords({ showLoading = false } = {}) {
 
   try {
     const params = currentFilters();
-    const payload = await api(`/api/records${params.size ? `?${params}` : ""}`);
+    const suffix = params.size ? `?${params}` : "";
+    const [payload, filterOptions] = await Promise.all([
+      api(`/api/records${suffix}`),
+      api(`/api/filter-options${suffix}`)
+    ]);
     if (requestId !== state.requestId) return;
+    state.recordFilterOptions = filterOptions;
+    if (renderRecordFilterOptions()) {
+      await loadRecords({ showLoading });
+      return;
+    }
     state.records = payload.records;
     renderRecords();
   } catch (error) {
@@ -348,8 +398,17 @@ async function loadTotals() {
   const requestId = ++state.totalsRequestId;
   try {
     const params = currentTotalFilters();
-    const totals = await api(`/api/totals${params.size ? `?${params}` : ""}`);
+    const suffix = params.size ? `?${params}` : "";
+    const [totals, filterOptions] = await Promise.all([
+      api(`/api/totals${suffix}`),
+      api(`/api/filter-options${suffix}`)
+    ]);
     if (requestId !== state.totalsRequestId) return;
+    state.totalFilterOptions = filterOptions;
+    if (renderTotalFilterOptions()) {
+      await loadTotals();
+      return;
+    }
     state.totals = totals;
     renderTotals();
   } catch (error) {
@@ -394,6 +453,79 @@ function showFieldErrors(fields = {}) {
   firstField?.focus();
 }
 
+function formatFileSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(size / 1024)} KB`;
+  return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(size / (1024 * 1024))} MB`;
+}
+
+function renderExistingAttachment(record) {
+  const hasAttachment = Boolean(record?.attachmentName);
+  elements.existingAttachment.hidden = !hasAttachment;
+  if (!hasAttachment) {
+    elements.existingAttachmentName.textContent = "";
+    elements.existingAttachmentSize.textContent = "";
+    elements.downloadAttachment.removeAttribute("href");
+    return;
+  }
+  elements.existingAttachmentName.textContent = record.attachmentName;
+  elements.existingAttachmentSize.textContent = formatFileSize(record.attachmentSize);
+  elements.downloadAttachment.href = `/api/records/${record.id}/attachment`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(date);
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(date);
+}
+
+function renderRecordHistory(record) {
+  const isExistingRecord = Boolean(record?.id && record?.createdAt);
+  elements.recordHistory.hidden = !isExistingRecord;
+  elements.recordCreatedAt.textContent = isExistingRecord ? formatDateTime(record.createdAt) : "";
+  const hasEdition = Boolean(isExistingRecord && record.editedAt);
+  elements.recordEditedHistory.hidden = !hasEdition;
+  elements.recordEditedAt.textContent = hasEdition ? formatDateTime(record.editedAt) : "";
+}
+
+function attachmentValidationMessage(file) {
+  if (!file) return "";
+  const allowedExtension = /\.(pdf|doc|docx|odt|rtf|txt|xls|xlsx|ppt|pptx|jpe?g|png)$/i;
+  if (!allowedExtension.test(file.name)) return "Formato não permitido. Selecione um PDF, documento do Office, texto ou imagem.";
+  if (file.size > 20 * 1024 * 1024) return "O arquivo deve ter no máximo 20 MB.";
+  return "";
+}
+
+async function uploadAttachment(recordId, file) {
+  const response = await fetch(`/api/records/${recordId}/attachment`, {
+    method: "POST",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "X-File-Name": encodeURIComponent(file.name)
+    },
+    body: file
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || "Não foi possível enviar o arquivo.");
+    error.status = response.status;
+    throw error;
+  }
+  return payload.record;
+}
+
 function openNewRecord() {
   elements.form.reset();
   elements.form.elements.id.value = "";
@@ -401,6 +533,9 @@ function openNewRecord() {
   elements.dialogKicker.textContent = "Novo cadastro";
   elements.dialogTitle.textContent = "Adicionar registro";
   elements.deleteRecord.hidden = true;
+  renderExistingAttachment(null);
+  renderRecordHistory(null);
+  rememberRecordFormState();
   elements.dialog.showModal();
   requestAnimationFrame(() => elements.form.elements.areaTecnica.focus());
 }
@@ -414,16 +549,58 @@ function openEditRecord(id) {
   }
 
   clearFieldErrors();
+  elements.attachmentInput.value = "";
   for (const [, field] of labels) elements.form.elements[field].value = record[field];
   elements.form.elements.id.value = record.id;
   elements.dialogKicker.textContent = "Edição de cadastro";
   elements.dialogTitle.textContent = "Editar registro";
   elements.deleteRecord.hidden = false;
+  renderExistingAttachment(record);
+  renderRecordHistory(record);
+  rememberRecordFormState();
   elements.dialog.showModal();
 }
 
+function recordFormSnapshot() {
+  const fields = Object.fromEntries(
+    labels.map(([, field]) => [field, String(elements.form.elements[field].value ?? "")])
+  );
+  const file = elements.attachmentInput.files[0];
+  return JSON.stringify({
+    fields,
+    attachment: file ? { name: file.name, size: file.size, lastModified: file.lastModified } : null
+  });
+}
+
+function rememberRecordFormState() {
+  state.recordFormBaseline = recordFormSnapshot();
+}
+
+function hasUnsavedRecordChanges() {
+  return Boolean(state.recordFormBaseline && recordFormSnapshot() !== state.recordFormBaseline);
+}
+
+function closeRecordDialogImmediately() {
+  elements.dialog.close();
+  state.recordFormBaseline = "";
+}
+
 function closeDialog() {
-  if (!elements.saveRecord.disabled) elements.dialog.close();
+  if (elements.saveRecord.disabled) return;
+  if (hasUnsavedRecordChanges()) {
+    if (!elements.discardDialog.open) elements.discardDialog.showModal();
+    return;
+  }
+  closeRecordDialogImmediately();
+}
+
+function keepEditingRecord() {
+  elements.discardDialog.close();
+}
+
+function discardRecordChanges() {
+  elements.discardDialog.close();
+  closeRecordDialogImmediately();
 }
 
 function formPayload() {
@@ -438,12 +615,12 @@ function setSaving(saving) {
   elements.deleteRecord.disabled = saving;
   elements.cancelDialog.disabled = saving;
   elements.closeDialog.disabled = saving;
+  elements.removeAttachment.disabled = saving;
   elements.saveLabel.hidden = saving;
   elements.saveLoading.hidden = !saving;
 }
 
 async function refreshData() {
-  await loadFilterOptions();
   await Promise.all([loadRecords(), loadTotals()]);
 }
 
@@ -452,19 +629,56 @@ async function saveRecord(event) {
   clearFieldErrors();
   if (!elements.form.reportValidity()) return;
 
+  const file = elements.attachmentInput.files[0];
+  const attachmentError = attachmentValidationMessage(file);
+  if (attachmentError) {
+    showToast(attachmentError, "error");
+    elements.attachmentInput.focus();
+    return;
+  }
+
   const id = elements.form.elements.id.value;
   setSaving(true);
   try {
-    await api(id ? `/api/records/${id}` : "/api/records", {
+    const result = await api(id ? `/api/records/${id}` : "/api/records", {
       method: id ? "PUT" : "POST",
       body: JSON.stringify(formPayload())
     });
+    elements.form.elements.id.value = result.record.id;
+    if (!id) {
+      elements.deleteRecord.hidden = false;
+      elements.dialogKicker.textContent = "Edição de cadastro";
+      elements.dialogTitle.textContent = "Editar registro";
+      renderRecordHistory(result.record);
+    }
+    if (file) await uploadAttachment(result.record.id, file);
     elements.dialog.close();
+    state.recordFormBaseline = "";
     showToast(id ? "Registro atualizado com sucesso." : "Registro adicionado com sucesso.");
     await refreshData();
   } catch (error) {
     if (error.fields) showFieldErrors(error.fields);
     else showToast(error.message, "error");
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function removeAttachment() {
+  const id = elements.form.elements.id.value;
+  if (!id || elements.existingAttachment.hidden) return;
+  if (!window.confirm("Remover o arquivo anexado a este registro?")) return;
+
+  setSaving(true);
+  try {
+    const result = await api(`/api/records/${id}/attachment`, { method: "DELETE" });
+    elements.attachmentInput.value = "";
+    renderExistingAttachment(result.record);
+    renderRecordHistory(result.record);
+    showToast("Arquivo removido.");
+    await refreshData();
+  } catch (error) {
+    showToast(error.message, "error");
   } finally {
     setSaving(false);
   }
@@ -480,6 +694,7 @@ async function deleteRecord() {
   try {
     await api(`/api/records/${id}`, { method: "DELETE" });
     elements.dialog.close();
+    state.recordFormBaseline = "";
     showToast("Registro excluído.");
     await refreshData();
   } catch (error) {
@@ -581,6 +796,25 @@ function showToast(message, type = "success") {
   state.toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), 3600);
 }
 
+function closeOnBackdropClick(dialog, closeHandler) {
+  let pointerStartedOnBackdrop = false;
+
+  dialog.addEventListener("pointerdown", (event) => {
+    pointerStartedOnBackdrop = event.target === dialog;
+  });
+  dialog.addEventListener("pointerup", () => {
+    window.setTimeout(() => {
+      pointerStartedOnBackdrop = false;
+    }, 0);
+  });
+  dialog.addEventListener("pointercancel", () => {
+    pointerStartedOnBackdrop = false;
+  });
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog && pointerStartedOnBackdrop) closeHandler();
+  });
+}
+
 function setupEvents() {
   let searchTimer;
   elements.filterForm.addEventListener("change", () => loadRecords());
@@ -613,21 +847,22 @@ function setupEvents() {
 
   elements.form.addEventListener("submit", saveRecord);
   elements.deleteRecord.addEventListener("click", deleteRecord);
+  elements.removeAttachment.addEventListener("click", removeAttachment);
   elements.closeDialog.addEventListener("click", closeDialog);
   elements.cancelDialog.addEventListener("click", closeDialog);
-  elements.dialog.addEventListener("click", (event) => {
-    if (event.target === elements.dialog) closeDialog();
-  });
+  closeOnBackdropClick(elements.dialog, closeDialog);
   elements.dialog.addEventListener("cancel", (event) => {
-    if (elements.saveRecord.disabled) event.preventDefault();
+    event.preventDefault();
+    closeDialog();
   });
+  elements.keepEditing.addEventListener("click", keepEditingRecord);
+  elements.confirmDiscard.addEventListener("click", discardRecordChanges);
+  closeOnBackdropClick(elements.discardDialog, keepEditingRecord);
 
   elements.exportForm.addEventListener("submit", exportRecords);
   elements.closeExportDialog.addEventListener("click", closeExportDialog);
   elements.cancelExportDialog.addEventListener("click", closeExportDialog);
-  elements.exportDialog.addEventListener("click", (event) => {
-    if (event.target === elements.exportDialog) closeExportDialog();
-  });
+  closeOnBackdropClick(elements.exportDialog, closeExportDialog);
   elements.exportDialog.addEventListener("cancel", (event) => {
     if (elements.confirmExport.disabled) event.preventDefault();
   });
@@ -651,10 +886,7 @@ function setupEvents() {
 async function init() {
   setupEvents();
   try {
-    [state.parameters, state.filterOptions] = await Promise.all([
-      api("/api/parameters"),
-      api("/api/filter-options")
-    ]);
+    state.parameters = await api("/api/parameters");
     setupParameters();
     await Promise.all([loadRecords({ showLoading: true }), loadTotals()]);
     showView(window.location.hash === "#totalizacao" ? "totals" : "records");

@@ -66,6 +66,8 @@ test("valida, cria, filtra e edita registros", async () => {
   const created = (await createResponse.json()).record;
   assert.equal(createResponse.status, 201);
   assert.equal(created.projeto, sampleRecord.projeto);
+  assert.ok(created.createdAt);
+  assert.equal(created.editedAt, null);
 
   const filterOptions = await (await request("/api/filter-options")).json();
   assert.deepEqual(filterOptions.areasTecnicas, ["Educação"]);
@@ -73,6 +75,36 @@ test("valida, cria, filtra e edita registros", async () => {
   assert.deepEqual(filterOptions.pareceres, ["Em andamento"]);
   assert.deepEqual(filterOptions.emendas, ["Sim"]);
   assert.deepEqual(filterOptions.posicionamentos, ["Favorável"]);
+
+  const secondRecord = {
+    ...sampleRecord,
+    areaTecnica: "Finanças",
+    responsavel: "Carlos Silva  (Colaborador)",
+    projeto: "PL 987/2026",
+    haParecer: "Não",
+    sugestaoEmenda: "Não",
+    posicionamento: "Desfavorável"
+  };
+  const secondCreateResponse = await request("/api/records", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(secondRecord)
+  });
+  const secondCreated = (await secondCreateResponse.json()).record;
+  assert.equal(secondCreateResponse.status, 201);
+
+  const educationOptions = await (await request(`/api/filter-options?areaTecnica=${encodeURIComponent("Educação")}`)).json();
+  assert.deepEqual(educationOptions.responsaveis, ["Beatriz Silva (Colaborador)"]);
+  assert.deepEqual(educationOptions.pareceres, ["Em andamento"]);
+
+  const financeOptions = await (await request(`/api/filter-options?areaTecnica=${encodeURIComponent("Finanças")}`)).json();
+  assert.deepEqual(financeOptions.responsaveis, ["Carlos Silva  (Colaborador)"]);
+  assert.deepEqual(financeOptions.posicionamentos, ["Desfavorável"]);
+
+  const responsibleOptions = await (await request(`/api/filter-options?responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}`)).json();
+  assert.deepEqual(responsibleOptions.areasTecnicas, ["Educação"]);
+
+  await request(`/api/records/${secondCreated.id}`, { method: "DELETE" });
 
   const filteredResponse = await request(`/api/records?areaTecnica=${encodeURIComponent("Educação")}&responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}&haParecer=${encodeURIComponent("Em andamento")}`);
   const filtered = await filteredResponse.json();
@@ -86,6 +118,8 @@ test("valida, cria, filtra e edita registros", async () => {
   });
   const updated = (await updateResponse.json()).record;
   assert.equal(updated.haParecer, "Sim");
+  assert.ok(updated.editedAt);
+  assert.ok(new Date(updated.editedAt) >= new Date(updated.createdAt));
 });
 
 test("totaliza e exporta a base em CSV compatível com Excel", async () => {
@@ -127,11 +161,48 @@ test("totaliza e exporta a base em CSV compatível com Excel", async () => {
   assert.notEqual(bytes.indexOf(Buffer.from([0xc1, 0x72, 0x65, 0x61])), -1);
 });
 
+test("anexa, substitui e disponibiliza documentos do registro", async () => {
+  const [record] = (await (await request("/api/records")).json()).records;
+  const file = Buffer.from("%PDF-1.7\nconteudo de teste\n", "utf8");
+  const uploadResponse = await request(`/api/records/${record.id}/attachment`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/pdf",
+      "X-File-Name": encodeURIComponent("parecer técnico.pdf")
+    },
+    body: file
+  });
+  const uploaded = (await uploadResponse.json()).record;
+  assert.equal(uploadResponse.status, 201);
+  assert.equal(uploaded.attachmentName, "parecer técnico.pdf");
+  assert.equal(uploaded.attachmentSize, file.length);
+
+  const downloadResponse = await request(`/api/records/${record.id}/attachment`);
+  const downloaded = Buffer.from(await downloadResponse.arrayBuffer());
+  assert.equal(downloadResponse.status, 200);
+  assert.equal(downloadResponse.headers.get("content-type"), "application/pdf");
+  assert.match(downloadResponse.headers.get("content-disposition"), /parecer%20t%C3%A9cnico\.pdf/);
+  assert.deepEqual(downloaded, file);
+
+  const invalidResponse = await request(`/api/records/${record.id}/attachment`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/octet-stream",
+      "X-File-Name": encodeURIComponent("programa.exe")
+    },
+    body: Buffer.from("arquivo não permitido")
+  });
+  assert.equal(invalidResponse.status, 415);
+});
+
 test("exclui um registro existente", async () => {
   const listResponse = await request("/api/records");
   const [record] = (await listResponse.json()).records;
   const deleteResponse = await request(`/api/records/${record.id}`, { method: "DELETE" });
   assert.equal(deleteResponse.status, 200);
+
+  const attachmentResponse = await request(`/api/records/${record.id}/attachment`);
+  assert.equal(attachmentResponse.status, 404);
 
   const totals = await (await request("/api/totals")).json();
   assert.equal(totals.total, 0);

@@ -487,6 +487,14 @@ h3 {
   font-size: 12px;
 }
 
+.field > span:first-child em {
+  margin-left: 5px;
+  color: var(--muted-2);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+}
+
 .field input,
 .field select,
 .field textarea {
@@ -552,6 +560,179 @@ h3 {
   display: none;
 }
 
+.field-help {
+  color: var(--muted-2);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.attachment-field input[type="file"] {
+  height: 46px;
+  padding: 5px 6px;
+  color: var(--muted);
+}
+
+.attachment-field input[type="file"]::file-selector-button {
+  height: 34px;
+  margin-right: 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.existing-attachment {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  margin-top: -4px;
+  padding: 11px 12px;
+  border: 1px solid #d6e5df;
+  border-radius: 10px;
+  background: #f4f9f7;
+}
+
+.attachment-file-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border-radius: 9px;
+  background: #dfeee9;
+  color: var(--brand);
+}
+
+.attachment-file-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.attachment-file-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.attachment-file-info strong,
+.attachment-file-info small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-file-info strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.attachment-file-info small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.attachment-link,
+.attachment-remove {
+  flex: none;
+  text-decoration: none;
+}
+
+.attachment-remove {
+  color: var(--red);
+}
+
+.record-history {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 14px;
+  border: 1px solid #dce5e2;
+  border-radius: 11px;
+  background: #f7faf9;
+}
+
+.record-history-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-history-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border-radius: 9px;
+  background: #e7f1ee;
+  color: var(--brand);
+}
+
+.record-history-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.record-history-heading strong,
+.record-history-heading small {
+  display: block;
+}
+
+.record-history-heading strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.record-history-heading small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.record-history-dates {
+  display: flex;
+  flex: none;
+  gap: 24px;
+  margin: 0;
+}
+
+.record-history-dates div {
+  min-width: 112px;
+}
+
+.record-history-dates dt {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.record-history-dates dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .input-with-icon {
   position: relative;
   display: block;
@@ -599,7 +780,7 @@ h3 {
 
 table {
   width: 100%;
-  min-width: 1360px;
+  min-width: 1378px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -618,7 +799,7 @@ th {
   padding: 11px 12px;
   background: #f7f9f8;
   color: #60716f;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.035em;
   text-transform: uppercase;
@@ -627,7 +808,7 @@ th {
 td {
   padding: 14px 12px;
   color: #405350;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 tbody tr {
@@ -642,15 +823,16 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
-th:nth-child(1) { width: 160px; }
-th:nth-child(2) { width: 205px; }
-th:nth-child(3) { width: 160px; }
-th:nth-child(4) { width: 240px; }
-th:nth-child(5) { width: 165px; }
-th:nth-child(6) { width: 130px; }
-th:nth-child(7) { width: 110px; }
-th:nth-child(8) { width: 145px; }
-th:nth-child(9) { width: 62px; }
+th:nth-child(1) { width: 190px; }
+th:nth-child(2) { width: 210px; }
+th:nth-child(3) { width: 135px; }
+th:nth-child(4) { width: 180px; }
+th:nth-child(5) { width: 140px; }
+th:nth-child(6) { width: 115px; }
+th:nth-child(7) { width: 80px; }
+th:nth-child(8) { width: 120px; }
+th:nth-child(9) { width: 118px; }
+th:nth-child(10) { width: 90px; }
 
 .cell-primary {
   display: block;
@@ -663,7 +845,22 @@ th:nth-child(9) { width: 62px; }
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  line-height: 1.45;
+  line-height: 1.38;
+}
+
+td:nth-child(1) .cell-truncate,
+td:nth-child(2) .cell-truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-date {
+  color: #536562;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .status-chip {
@@ -674,7 +871,7 @@ th:nth-child(9) { width: 62px; }
   border-radius: 999px;
   background: #eff3f1;
   color: #586864;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 750;
   white-space: nowrap;
 }
@@ -702,6 +899,18 @@ th:nth-child(9) { width: 62px; }
   border-radius: 8px;
   background: #fff;
   color: var(--brand);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.attachment-action {
+  color: var(--blue);
+  text-decoration: none;
 }
 
 .row-action:hover {
@@ -940,13 +1149,13 @@ th:nth-child(9) { width: 62px; }
 .bar-item-head {
   margin-bottom: 6px;
   color: #445754;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .bar-item-head strong,
 .mini-stat-item strong {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -960,7 +1169,7 @@ th:nth-child(9) { width: 62px; }
 .bar-item-percent,
 .mini-stat-percent {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -984,7 +1193,7 @@ th:nth-child(9) { width: 62px; }
   border-radius: 10px;
   background: #f7f9f8;
   color: #51625f;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .mini-stat-label {
@@ -1036,6 +1245,48 @@ th:nth-child(9) { width: 62px; }
 
 .export-dialog {
   width: min(470px, calc(100% - 30px));
+}
+
+.discard-dialog {
+  width: min(500px, calc(100% - 30px));
+}
+
+.discard-dialog-content {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.discard-warning-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  place-items: center;
+  border-radius: 12px;
+  background: #fff0e2;
+  color: #a95817;
+}
+
+.discard-warning-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.discard-dialog-body {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.discard-dialog-body p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .export-dialog .dialog-body {
@@ -1361,7 +1612,7 @@ th:nth-child(9) { width: 62px; }
   td::before {
     color: var(--muted-2);
     content: attr(data-label);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 750;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -1377,14 +1628,28 @@ th:nth-child(9) { width: 62px; }
     display: none;
   }
 
+  td:nth-child(1) .cell-truncate,
+  td:nth-child(2) .cell-truncate {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
   .row-action {
     width: auto;
     padding: 0 12px;
   }
 
-  .row-action::after {
+  .row-action[data-edit-id]::after {
     margin-left: 6px;
     content: "Editar";
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .attachment-action::after {
+    margin-left: 6px;
+    content: "Baixar";
     font-size: 11px;
     font-weight: 700;
   }
@@ -1428,6 +1693,22 @@ th:nth-child(9) { width: 62px; }
 
   .form-span-2 {
     grid-column: auto;
+  }
+
+  .record-history {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .record-history-dates {
+    width: 100%;
+    gap: 12px;
+  }
+
+  .record-history-dates div {
+    min-width: 0;
+    flex: 1;
   }
 
   .dialog-footer {
