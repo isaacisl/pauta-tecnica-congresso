@@ -567,6 +567,8 @@ h3 {
 }
 
 .attachment-field input[type="file"] {
+  width: 100%;
+  max-width: 100%;
   height: 46px;
   padding: 5px 6px;
   color: var(--muted);
@@ -772,15 +774,17 @@ h3 {
 }
 
 .table-wrapper {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
+  isolation: isolate;
   scrollbar-color: #bccac6 transparent;
   scrollbar-width: thin;
 }
 
 table {
   width: 100%;
-  min-width: 1378px;
+  min-width: 1392px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -832,7 +836,25 @@ th:nth-child(6) { width: 115px; }
 th:nth-child(7) { width: 80px; }
 th:nth-child(8) { width: 120px; }
 th:nth-child(9) { width: 118px; }
-th:nth-child(10) { width: 90px; }
+th:nth-child(10) { width: 104px; }
+
+th:last-child,
+td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  background: #fff;
+  box-shadow: -1px 0 0 var(--line), -14px 0 18px -19px rgba(18, 43, 39, 0.75);
+}
+
+th:last-child {
+  z-index: 5;
+  background: #f7f9f8;
+}
+
+tbody tr:hover td:last-child {
+  background: #fbfdfc;
+}
 
 .cell-primary {
   display: block;
@@ -903,6 +925,7 @@ td:nth-child(2) .cell-truncate {
 
 .row-actions {
   display: flex;
+  min-width: max-content;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
@@ -1619,9 +1642,12 @@ td:nth-child(2) .cell-truncate {
   }
 
   td:last-child {
+    position: static;
     display: flex;
     justify-content: flex-end;
     border-bottom: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   td:last-child::before {
@@ -1652,6 +1678,19 @@ td:nth-child(2) .cell-truncate {
     content: "Baixar";
     font-size: 11px;
     font-weight: 700;
+  }
+
+  .attachment-field input[type="file"] {
+    height: auto;
+    min-height: 46px;
+  }
+
+  .existing-attachment {
+    flex-wrap: wrap;
+  }
+
+  .attachment-file-info {
+    flex-basis: calc(100% - 45px);
   }
 
   .total-hero {
