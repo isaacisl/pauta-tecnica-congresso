@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDatabase, ValidationError } from "./lib/database.js";
 import { parameters } from "./lib/parameters.js";
+import { createCamaraClient, propositionTypes } from "./lib/camara.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(rootDir, "public");
@@ -228,9 +229,11 @@ async function serveStatic(request, response, pathname) {
 export async function startServer({
   port = Number(process.env.PORT) || 3000,
   hostname = process.env.HOST || "127.0.0.1",
-  databasePath = process.env.DATABASE_PATH || defaultDatabasePath
+  databasePath = process.env.DATABASE_PATH || defaultDatabasePath,
+  camaraFetch = fetch
 } = {}) {
   const database = createDatabase(databasePath);
+  const camara = createCamaraClient(camaraFetch);
   const uploadDirectory = path.join(path.dirname(databasePath), "uploads");
   await mkdir(uploadDirectory, { recursive: true });
 
@@ -245,7 +248,19 @@ export async function startServer({
       }
 
       if (pathname === "/api/parameters" && request.method === "GET") {
-        send(response, 200, parameters);
+        send(response, 200, { ...parameters, propositionTypes });
+        return;
+      }
+
+      if (pathname === "/api/camara/proposicoes" && request.method === "GET") {
+        send(response, 200, await camara.search(url.searchParams));
+        return;
+      }
+
+      const propositionMatch = pathname.match(/^\/api\/camara\/proposicoes\/(\d+)$/);
+      if (propositionMatch && request.method === "POST") {
+        const { searchToken } = await readJson(request);
+        send(response, 200, await camara.select(Number(propositionMatch[1]), searchToken));
         return;
       }
 
@@ -261,7 +276,7 @@ export async function startServer({
       }
 
       if (pathname === "/api/records" && request.method === "POST") {
-        const record = database.create(await readJson(request));
+        const record = database.create(camara.recordInput(await readJson(request)));
         send(response, 201, { record });
         return;
       }
@@ -338,7 +353,12 @@ export async function startServer({
         }
 
         if (request.method === "PUT") {
-          const record = database.update(id, await readJson(request));
+          const existing = database.get(id);
+          if (!existing) {
+            sendError(response, 404, "Registro não encontrado.");
+            return;
+          }
+          const record = database.update(id, camara.recordInput(await readJson(request), existing));
           if (!record) sendError(response, 404, "Registro não encontrado.");
           else send(response, 200, { record });
           return;

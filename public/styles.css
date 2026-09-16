@@ -1426,6 +1426,29 @@ td:nth-child(2) .cell-truncate {
   grid-column: 1 / -1;
 }
 
+.proposition-search {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+.proposition-search h3 { margin: 0 0 6px; }
+.proposition-search p { margin: 6px 0 12px; color: var(--muted); font-size: 12px; }
+.proposition-search-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.proposition-search-fields .field { min-width: 0; }
+.proposition-results { display: grid; gap: 10px; max-height: 270px; overflow-y: auto; }
+.proposition-result { display: grid; gap: 6px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: white; text-align: left; overflow-wrap: anywhere; }
+.proposition-result:hover { border-color: var(--brand); }
+.proposition-result small { color: var(--muted); }
+.proposition-result span { font-size: 12px; }
+.field input[readonly], .field textarea[readonly] { background: var(--surface-soft); color: #536562; }
+#proposition-search-status[data-error="true"] { color: var(--red); }
+@media (max-width: 620px) {
+  .proposition-search-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proposition-search-fields .field:first-child, .proposition-search-fields .button { grid-column: 1 / -1; }
+}
+
 .dialog-footer {
   display: flex;
   align-items: center;

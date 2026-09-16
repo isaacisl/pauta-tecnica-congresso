@@ -28,9 +28,22 @@ before(async () => {
   app = await startServer({
     port: 0,
     hostname: "127.0.0.1",
-    databasePath: path.join(temporaryDirectory, "test.sqlite")
+    databasePath: path.join(temporaryDirectory, "test.sqlite"),
+    camaraFetch: async (url) => {
+      const number = Number(url.searchParams.get("numero") || url.pathname.split("/").at(-1));
+      const proposition = { id: number, siglaTipo: "PL", numero: number, ano: 2026, ementa: sampleRecord.ementa, dataApresentacao: "2026-01-10T14:30", statusProposicao: { dataHora: "2026-02-20T15:45" } };
+      return Response.json({ dados: url.pathname.endsWith("/proposicoes") ? [proposition] : proposition });
+    }
   });
 });
+
+async function selection(number) {
+  const search = await (await request(`/api/camara/proposicoes?siglaTipo=PL&numero=${number}&ano=2026`)).json();
+  const result = await (await request(`/api/camara/proposicoes/${number}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchToken: search.searchToken })
+  })).json();
+  return result.propositionToken;
+}
 
 after(async () => {
   await app.close();
@@ -61,7 +74,7 @@ test("valida, cria, filtra e edita registros", async () => {
   const createResponse = await request("/api/records", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sampleRecord)
+    body: JSON.stringify({ ...sampleRecord, propositionToken: await selection(1234) })
   });
   const created = (await createResponse.json()).record;
   assert.equal(createResponse.status, 201);
@@ -88,7 +101,7 @@ test("valida, cria, filtra e edita registros", async () => {
   const secondCreateResponse = await request("/api/records", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(secondRecord)
+    body: JSON.stringify({ ...secondRecord, propositionToken: await selection(987) })
   });
   const secondCreated = (await secondCreateResponse.json()).record;
   assert.equal(secondCreateResponse.status, 201);

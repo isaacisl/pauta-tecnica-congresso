@@ -7,7 +7,14 @@ const state = {
   requestId: 0,
   totalsRequestId: 0,
   toastTimer: null,
-  recordFormBaseline: ""
+  recordFormBaseline: "",
+  proposition: null,
+  propositionToken: "",
+  searchToken: "",
+  mustSearch: false,
+  lookupVersion: 0,
+  lookupController: null,
+  lookupBusy: false
 };
 
 const elements = {
@@ -50,6 +57,12 @@ const elements = {
   positionTotals: document.querySelector("#position-totals"),
   dialog: document.querySelector("#record-dialog"),
   form: document.querySelector("#record-form"),
+  searchType: document.querySelector("#search-type"),
+  searchNumber: document.querySelector("#search-number"),
+  searchYear: document.querySelector("#search-year"),
+  searchProposition: document.querySelector("#search-proposition"),
+  searchStatus: document.querySelector("#proposition-search-status"),
+  propositionResults: document.querySelector("#proposition-results"),
   dialogKicker: document.querySelector("#dialog-kicker"),
   dialogTitle: document.querySelector("#dialog-title"),
   closeDialog: document.querySelector("#close-dialog"),
@@ -245,7 +258,11 @@ function openRecordDetails(id) {
   document.querySelector("#details-content").innerHTML = fields.map(([label, field]) => {
     const value = field.endsWith("At") ? formatDateTime(record[field]) : record[field];
     return `<div class="${field === "ementa" ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "Não informado")}</dd></div>`;
-  }).join("") + (record.attachmentName ? `<div class="details-wide"><dt>Arquivo anexado</dt><dd><a href="/api/records/${record.id}/attachment">Baixar ${escapeHtml(record.attachmentName)}</a></dd></div>` : "");
+  }).join("") + `
+    <div><dt>Data de apresentação (início)</dt><dd>${escapeHtml(formatCamaraDate(record.camara?.dataApresentacao))}</dd></div>
+    <div><dt>Data e hora do status da proposição</dt><dd>${escapeHtml(formatCamaraDate(record.camara?.statusDataHora))}</dd></div>
+    ${record.camara ? `<div class="details-wide"><dt>Fonte: Câmara dos Deputados · ID ${escapeHtml(record.camara.id)}</dt><dd>Dados da consulta de ${escapeHtml(formatDateTime(record.camara.consultadoEm))}.</dd></div>` : ""}
+  ` + (record.attachmentName ? `<div class="details-wide"><dt>Arquivo anexado</dt><dd><a href="/api/records/${record.id}/attachment">Baixar ${escapeHtml(record.attachmentName)}</a></dd></div>` : "");
   dialog.showModal();
 }
 
@@ -543,9 +560,128 @@ async function uploadAttachment(recordId, file) {
   return payload.record;
 }
 
+// Câmara timestamps have no timezone suffix: preserve the official wall-clock date/time.
+function formatCamaraDate(value) {
+  const match = typeof value === "string" && value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}${match[4] ? ` às ${match[4]}:${match[5]}` : ""}` : "Não informada";
+}
+
+function lookupMessage(message, error = false) {
+  elements.searchStatus.textContent = message;
+  elements.searchStatus.dataset.error = String(error);
+}
+
+function setLookupBusy(busy) {
+  state.lookupBusy = busy;
+  elements.searchProposition.disabled = busy;
+  elements.searchProposition.textContent = busy ? "Consultando…" : "Pesquisar";
+  elements.saveRecord.disabled = busy;
+  elements.propositionResults.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
+}
+
+function cancelLookup() {
+  state.lookupVersion++;
+  state.lookupController?.abort();
+  state.lookupController = null;
+  setLookupBusy(false);
+}
+
+function resetLookup(record = null) {
+  cancelLookup();
+  state.proposition = record?.camara || null;
+  state.propositionToken = "";
+  state.searchToken = "";
+  state.mustSearch = !record;
+  elements.searchType.value = record?.camara?.siglaTipo || "";
+  elements.searchNumber.value = record?.camara?.numero || "";
+  elements.searchYear.value = record?.camara?.ano || "";
+  elements.propositionResults.innerHTML = "";
+  elements.propositionResults.hidden = true;
+  elements.form.elements.ementa.readOnly = !record || Boolean(record.camara);
+  elements.form.elements.ementa.required = Boolean(record && !record.camara);
+  lookupMessage(record ? (record.camara ? "Proposição já vinculada. Pesquise novamente somente se quiser trocar ou atualizar os dados da Câmara." : "Cadastro anterior à integração. Para trocar o projeto, faça uma busca na Câmara.") : "A pesquisa é obrigatória para criar um registro.");
+}
+
+function invalidateLookup() {
+  cancelLookup();
+  state.mustSearch = true;
+  state.proposition = null;
+  state.propositionToken = "";
+  state.searchToken = "";
+  elements.form.elements.projeto.value = "";
+  elements.form.elements.ementa.value = "";
+  elements.form.elements.ementa.readOnly = true;
+  elements.form.elements.ementa.required = false;
+  elements.propositionResults.innerHTML = "";
+  elements.propositionResults.hidden = true;
+  lookupMessage("Clique em Pesquisar para consultar o tipo, número e ano informados.");
+}
+
+async function selectProposition(id, version = state.lookupVersion) {
+  if (!state.searchToken) return;
+  setLookupBusy(true);
+  lookupMessage("Carregando os dados da proposição…");
+  try {
+    const payload = await api(`/api/camara/proposicoes/${id}`, {
+      method: "POST", body: JSON.stringify({ searchToken: state.searchToken }),
+      signal: state.lookupController?.signal
+    });
+    if (version !== state.lookupVersion || !elements.dialog.open) return;
+    state.proposition = payload.proposition;
+    state.propositionToken = payload.propositionToken;
+    state.mustSearch = false;
+    elements.form.elements.projeto.value = payload.proposition.projeto;
+    elements.form.elements.ementa.value = payload.proposition.ementa;
+    elements.form.elements.ementa.readOnly = true;
+    elements.form.elements.ementa.required = false;
+    elements.propositionResults.hidden = true;
+    lookupMessage(`${payload.proposition.projeto} selecionado (ID ${payload.proposition.id}). Preencha a comissão e os demais campos.${payload.proposition.ementa ? "" : " A Câmara não informou uma ementa."}`);
+  } catch (error) {
+    if (version === state.lookupVersion) lookupMessage(error.message, true);
+  } finally {
+    if (version === state.lookupVersion) setLookupBusy(false);
+  }
+}
+
+async function searchPropositions() {
+  if (state.lookupBusy || elements.saveLoading.hidden === false) return;
+  const siglaTipo = elements.searchType.value;
+  const numero = elements.searchNumber.value.trim();
+  const ano = elements.searchYear.value.trim();
+  if (!siglaTipo || !/^\d{1,9}$/.test(numero) || Number(numero) < 1 || !/^\d{4}$/.test(ano) || Number(ano) < 1000) {
+    lookupMessage("Selecione o tipo e informe um número positivo e um ano com 4 dígitos.", true);
+    return;
+  }
+  invalidateLookup();
+  const version = state.lookupVersion;
+  state.lookupController = new AbortController();
+  setLookupBusy(true);
+  lookupMessage("Pesquisando na Câmara dos Deputados…");
+  try {
+    const payload = await api(`/api/camara/proposicoes?${new URLSearchParams({ siglaTipo, numero, ano })}`, { signal: state.lookupController.signal });
+    if (version !== state.lookupVersion || !elements.dialog.open) return;
+    state.searchToken = payload.searchToken;
+    elements.propositionResults.innerHTML = payload.results.map((result) => `
+      <button class="proposition-result" type="button" data-proposition-id="${result.id}">
+        <strong>${escapeHtml(result.projeto)} · ID ${result.id}</strong>
+        <span>${escapeHtml(result.ementa || "Ementa não informada")}</span>
+        <small>Apresentação: ${escapeHtml(formatCamaraDate(result.dataApresentacao))} · Selecionar esta proposição</small>
+      </button>
+    `).join("");
+    elements.propositionResults.hidden = payload.results.length === 0;
+    if (payload.results.length === 1) await selectProposition(payload.results[0].id, version);
+    else lookupMessage(payload.results.length ? `${payload.results.length} proposições encontradas. Selecione a desejada abaixo.` : "Nenhuma proposição encontrada. Confira o tipo, número e ano e pesquise novamente.", !payload.results.length);
+  } catch (error) {
+    if (version === state.lookupVersion) lookupMessage(error.message, true);
+  } finally {
+    if (version === state.lookupVersion) setLookupBusy(false);
+  }
+}
+
 function openNewRecord() {
   elements.form.reset();
   elements.form.elements.id.value = "";
+  resetLookup();
   clearFieldErrors();
   elements.dialogKicker.textContent = "Novo cadastro";
   elements.dialogTitle.textContent = "Adicionar registro";
@@ -554,7 +690,7 @@ function openNewRecord() {
   renderRecordHistory(null);
   rememberRecordFormState();
   elements.dialog.showModal();
-  requestAnimationFrame(() => elements.form.elements.areaTecnica.focus());
+  requestAnimationFrame(() => elements.searchType.focus());
 }
 
 function openEditRecord(id) {
@@ -569,6 +705,7 @@ function openEditRecord(id) {
   elements.attachmentInput.value = "";
   for (const [, field] of labels) elements.form.elements[field].value = record[field];
   elements.form.elements.id.value = record.id;
+  resetLookup(record);
   elements.dialogKicker.textContent = "Edição de cadastro";
   elements.dialogTitle.textContent = "Editar registro";
   elements.deleteRecord.hidden = false;
@@ -585,6 +722,8 @@ function recordFormSnapshot() {
   const file = elements.attachmentInput.files[0];
   return JSON.stringify({
     fields,
+    search: [elements.searchType.value, elements.searchNumber.value, elements.searchYear.value],
+    proposition: state.proposition,
     attachment: file ? { name: file.name, size: file.size, lastModified: file.lastModified } : null
   });
 }
@@ -598,12 +737,13 @@ function hasUnsavedRecordChanges() {
 }
 
 function closeRecordDialogImmediately() {
+  cancelLookup();
   elements.dialog.close();
   state.recordFormBaseline = "";
 }
 
 function closeDialog() {
-  if (elements.saveRecord.disabled) return;
+  if (!elements.saveLoading.hidden) return;
   if (hasUnsavedRecordChanges()) {
     if (!elements.discardDialog.open) elements.discardDialog.showModal();
     return;
@@ -624,11 +764,14 @@ function formPayload() {
   const formData = new FormData(elements.form);
   const payload = {};
   for (const [, field] of labels) payload[field] = String(formData.get(field) ?? "").trim();
+  if (state.propositionToken) payload.propositionToken = state.propositionToken;
   return payload;
 }
 
 function setSaving(saving) {
-  elements.saveRecord.disabled = saving;
+  elements.saveRecord.disabled = saving || state.lookupBusy;
+  elements.searchProposition.disabled = saving || state.lookupBusy;
+  for (const input of [elements.searchType, elements.searchNumber, elements.searchYear]) input.disabled = saving;
   elements.deleteRecord.disabled = saving;
   elements.cancelDialog.disabled = saving;
   elements.closeDialog.disabled = saving;
@@ -643,6 +786,13 @@ async function refreshData() {
 
 async function saveRecord(event) {
   event.preventDefault();
+  if (state.lookupBusy || !elements.saveLoading.hidden) return;
+  if (state.mustSearch || (!elements.form.elements.id.value && !state.propositionToken)) {
+    lookupMessage("Pesquise e selecione uma proposição antes de salvar.", true);
+    elements.searchProposition.scrollIntoView({ block: "center" });
+    elements.searchProposition.focus();
+    return;
+  }
   clearFieldErrors();
   if (!elements.form.reportValidity()) return;
 
@@ -662,6 +812,8 @@ async function saveRecord(event) {
       body: JSON.stringify(formPayload())
     });
     elements.form.elements.id.value = result.record.id;
+    state.propositionToken = "";
+    state.proposition = result.record.camara;
     if (!id) {
       elements.deleteRecord.hidden = false;
       elements.dialogKicker.textContent = "Edição de cadastro";
@@ -833,6 +985,20 @@ function closeOnBackdropClick(dialog, closeHandler) {
 }
 
 function setupEvents() {
+  elements.searchProposition.addEventListener("click", searchPropositions);
+  elements.searchType.addEventListener("change", invalidateLookup);
+  elements.searchNumber.addEventListener("input", invalidateLookup);
+  elements.searchYear.addEventListener("input", invalidateLookup);
+  for (const input of [elements.searchType, elements.searchNumber, elements.searchYear]) {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); elements.searchProposition.focus(); }
+    });
+  }
+  elements.propositionResults.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-proposition-id]");
+    if (button && !state.lookupBusy) selectProposition(Number(button.dataset.propositionId));
+  });
+  elements.dialog.addEventListener("close", cancelLookup);
   let searchTimer;
   elements.filterForm.addEventListener("change", () => loadRecords());
   elements.filterQ.addEventListener("input", () => {
@@ -915,6 +1081,7 @@ async function init() {
   setupEvents();
   try {
     state.parameters = await api("/api/parameters");
+    elements.searchType.innerHTML = '<option value="">Selecione o tipo</option>' + state.parameters.propositionTypes.map(([type, name]) => `<option value="${escapeHtml(type)}">${escapeHtml(type)} — ${escapeHtml(name)}</option>`).join("");
     setupParameters();
     await Promise.all([loadRecords({ showLoading: true }), loadTotals()]);
     showView(window.location.hash === "#totalizacao" ? "totals" : "records");
