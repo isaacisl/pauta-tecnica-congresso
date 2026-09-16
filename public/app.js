@@ -235,11 +235,25 @@ function statusChip(value) {
   return `<span class="status-chip ${chipClass(value)}">${escapeHtml(value)}</span>`;
 }
 
+function openRecordDetails(id) {
+  const record = state.records.find((item) => item.id === id);
+  if (!record) return;
+  const dialog = document.querySelector("#details-dialog");
+  dialog.dataset.recordId = String(id);
+  const fields = [...labels, ["Data de inclusão", "createdAt"]];
+  if (record.editedAt) fields.push(["Última edição", "editedAt"]);
+  document.querySelector("#details-content").innerHTML = fields.map(([label, field]) => {
+    const value = field.endsWith("At") ? formatDateTime(record[field]) : record[field];
+    return `<div class="${field === "ementa" ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "Não informado")}</dd></div>`;
+  }).join("") + (record.attachmentName ? `<div class="details-wide"><dt>Arquivo anexado</dt><dd><a href="/api/records/${record.id}/attachment">Baixar ${escapeHtml(record.attachmentName)}</a></dd></div>` : "");
+  dialog.showModal();
+}
+
 function renderRecords() {
   const records = state.records;
   elements.recordsBody.innerHTML = records
     .map((record) => {
-      const cells = labels.map(([label, field]) => {
+      const cells = labels.filter(([, field]) => ["areaTecnica", "responsavel", "projeto", "posicionamento"].includes(field)).map(([label, field]) => {
         const isStatus = ["haParecer", "sugestaoEmenda", "posicionamento"].includes(field);
         const content = isStatus
           ? statusChip(record[field])
@@ -256,6 +270,9 @@ function renderRecords() {
       cells.push(`
         <td data-label="Ações">
           <span class="row-actions">
+            <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Ver detalhes de ${escapeHtml(record.projeto)}" title="Ver detalhes do registro">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
             ${record.attachmentName ? `
               <a class="row-action attachment-action" href="/api/records/${record.id}/attachment" aria-label="Baixar ${escapeHtml(record.attachmentName)}" title="Baixar ${escapeHtml(record.attachmentName)}">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 12.5 14.5 6a3 3 0 0 1 4.2 4.2l-8.2 8.2a5 5 0 0 1-7.1-7.1l8-8" /></svg>
@@ -837,8 +854,19 @@ function setupEvents() {
   elements.exportButton.addEventListener("click", openExportDialog);
 
   elements.recordsBody.addEventListener("click", (event) => {
+    const details = event.target.closest("[data-details-id]");
+    if (details) openRecordDetails(Number(details.dataset.detailsId));
     const button = event.target.closest("[data-edit-id]");
     if (button) openEditRecord(Number(button.dataset.editId));
+  });
+
+  const detailsDialog = document.querySelector("#details-dialog");
+  document.querySelector("#close-details").addEventListener("click", () => detailsDialog.close());
+  closeOnBackdropClick(detailsDialog, () => detailsDialog.close());
+  document.querySelector("#details-edit").addEventListener("click", () => {
+    const id = Number(detailsDialog.dataset.recordId);
+    detailsDialog.close();
+    openEditRecord(id);
   });
 
   for (const button of elements.navButtons) {

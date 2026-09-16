@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Gestão local de projetos prioritários por área técnica." />
     <title>Pauta Técnica</title>
-    <link rel="stylesheet" href="/styles.css?v=20260903-1" />
+    <link rel="stylesheet" href="/styles.css?v=20260916-1" />
   </head>
   <body>
     <header class="app-header">
@@ -134,10 +134,6 @@
                   <th>Área técnica</th>
                   <th>Responsável</th>
                   <th>Projeto</th>
-                  <th>Ementa</th>
-                  <th>Atual comissão</th>
-                  <th>Parecer</th>
-                  <th>Emenda</th>
                   <th>Posicionamento</th>
                   <th>Data de inclusão</th>
                   <th><span class="sr-only">Ações</span></th>
@@ -262,6 +258,17 @@
         </div>
       </section>
     </main>
+
+    <dialog id="details-dialog" class="record-dialog details-dialog" aria-labelledby="details-title">
+      <div class="details-layout">
+        <div class="dialog-header">
+          <div><p class="eyebrow">Consulta do registro</p><h2 id="details-title">Detalhes do registro</h2></div>
+          <button id="close-details" class="icon-button" type="button" aria-label="Fechar detalhes">✕</button>
+        </div>
+        <div class="dialog-body"><dl id="details-content" class="details-grid"></dl></div>
+        <div class="dialog-footer"><button id="details-edit" class="button button-primary" type="button">Editar registro</button></div>
+      </div>
+    </dialog>
 
     <dialog id="record-dialog" class="record-dialog" aria-labelledby="dialog-title">
       <form id="record-form" novalidate>
@@ -440,6 +447,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260820-3"></script>
+    <script type="module" src="/app.js?v=20260916-1"></script>
   </body>
 </html>
