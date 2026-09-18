@@ -29,6 +29,7 @@ before(async () => {
     port: 0,
     hostname: "127.0.0.1",
     databasePath: path.join(temporaryDirectory, "test.sqlite"),
+    senadoFetch: async () => Response.json([]),
     camaraFetch: async (url) => {
       const number = Number(url.searchParams.get("numero") || url.pathname.split("/").at(-1));
       const proposition = { id: number, siglaTipo: "PL", numero: number, ano: 2026, ementa: sampleRecord.ementa, dataApresentacao: "2026-01-10T14:30", statusProposicao: { dataHora: "2026-02-20T15:45" } };

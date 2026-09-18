@@ -73,7 +73,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     calls++;
     return Response.json({ dados: url.pathname.endsWith("/proposicoes") ? [official] : official });
   };
-  let app = await startServer({ port: 0, databasePath, camaraFetch });
+  let app = await startServer({ port: 0, databasePath, camaraFetch, senadoFetch: async () => Response.json([]) });
   const request = (endpoint, body, method = "POST") => fetch(`${app.url}${endpoint}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   try {
     await fetch(`${app.url}/api/parameters`);
@@ -90,7 +90,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     assert.equal(saved.atualComissao, fields.atualComissao);
     assert.equal(calls, 2);
     await app.close();
-    app = await startServer({ port: 0, databasePath, camaraFetch });
+    app = await startServer({ port: 0, databasePath, camaraFetch, senadoFetch: async () => Response.json([]) });
     const updatedResponse = await request(`/api/records/${saved.id}`, { ...saved, haParecer: "Não", ementa: "Tentativa de trocar", camara: { id: 123 } }, "PUT");
     assert.equal(updatedResponse.status, 200);
     const updated = (await updatedResponse.json()).record;

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Gestão local de projetos prioritários por área técnica." />
     <title>Pauta Técnica</title>
-    <link rel="stylesheet" href="/styles.css?v=20260916-2" />
+    <link rel="stylesheet" href="/styles.css?v=20260918-1" />
   </head>
   <body>
     <header class="app-header">
@@ -287,8 +287,8 @@
           <input id="record-id" name="id" type="hidden" />
           <div class="form-grid">
             <section class="proposition-search form-span-2" aria-labelledby="proposition-search-title">
-              <h3 id="proposition-search-title">Buscar proposição na Câmara</h3>
-              <p>Selecione o tipo e informe número e ano. Projeto e ementa serão preenchidos após a consulta.</p>
+              <h3 id="proposition-search-title">Buscar proposição na Câmara e no Senado</h3>
+              <p>Selecione o tipo e informe número e ano de qualquer uma das Casas. O sistema identifica as numerações equivalentes e preenche projeto e ementa com os dados da Câmara.</p>
               <div class="proposition-search-fields">
                 <label class="field"><span>Tipo</span><select id="search-type"><option value="">Selecione o tipo</option></select></label>
                 <label class="field"><span>Número</span><input id="search-number" type="text" inputmode="numeric" maxlength="9" placeholder="Ex.: 1234" /></label>
@@ -310,7 +310,7 @@
             </label>
             <label class="field form-span-2">
               <span>Projeto <b aria-hidden="true">*</b></span>
-              <input id="field-projeto" name="projeto" type="text" maxlength="300" placeholder="Preenchido pela busca na Câmara" readonly required />
+              <input id="field-projeto" name="projeto" type="text" maxlength="300" placeholder="Preenchido pela busca legislativa" readonly required />
               <small class="field-error" data-error-for="projeto"></small>
             </label>
             <label class="field form-span-2">
@@ -459,6 +459,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260916-2"></script>
+    <script type="module" src="/app.js?v=20260918-1"></script>
   </body>
 </html>
