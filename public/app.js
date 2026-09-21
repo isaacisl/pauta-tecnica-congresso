@@ -10,6 +10,7 @@ const state = {
   recordFormBaseline: "",
   proposition: null,
   propositionToken: "",
+  lookupWarnings: [],
   searchToken: "",
   mustSearch: false,
   lookupVersion: 0,
@@ -62,6 +63,7 @@ const elements = {
   searchYear: document.querySelector("#search-year"),
   searchProposition: document.querySelector("#search-proposition"),
   searchStatus: document.querySelector("#proposition-search-status"),
+  statusPreview: document.querySelector("#proposition-status-preview"),
   propositionResults: document.querySelector("#proposition-results"),
   dialogKicker: document.querySelector("#dialog-kicker"),
   dialogTitle: document.querySelector("#dialog-title"),
@@ -251,19 +253,22 @@ function statusChip(value) {
 function openRecordDetails(id) {
   const record = state.records.find((item) => item.id === id);
   if (!record) return;
+  const proposition = record.proposition || record.camara;
   const dialog = document.querySelector("#details-dialog");
   dialog.dataset.recordId = String(id);
   const fields = [...labels, ["Data de inclusão", "createdAt"]];
   if (record.editedAt) fields.push(["Última edição", "editedAt"]);
   document.querySelector("#details-content").innerHTML = fields.map(([label, field]) => {
     const value = field.endsWith("At") ? formatDateTime(record[field]) : record[field];
-    return `<div class="${field === "ementa" ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "Não informado")}</dd></div>`;
+    const content = ["haParecer", "sugestaoEmenda", "posicionamento"].includes(field) && value ? statusChip(value) : escapeHtml(value || "Não informado");
+    return `<div class="${["projeto", "ementa"].includes(field) ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${content}</dd></div>`;
   }).join("") + `
-    <div><dt>Data de apresentação (início)</dt><dd>${escapeHtml(formatCamaraDate(record.camara?.dataApresentacao))}</dd></div>
-    <div><dt>Data e hora do status da proposição</dt><dd>${escapeHtml(formatCamaraDate(record.camara?.statusDataHora))}</dd></div>
-    ${record.camara ? `<div class="details-wide"><dt>Fonte: Câmara dos Deputados · ID ${escapeHtml(record.camara.id)}</dt><dd>Dados da consulta de ${escapeHtml(formatDateTime(record.camara.consultadoEm))}.</dd></div>` : ""}
+    <div><dt>Data de apresentação (início)</dt><dd>${escapeHtml(formatCamaraDate(proposition?.dataApresentacao))}${proposition ? ` · ${escapeHtml(sourceLabel(proposition.source))}` : ""}</dd></div>
+    <div><dt>Data e hora da situação</dt><dd>${proposition?.statuses?.length > 1 && !proposition.latestStatus ? "Confira abaixo as datas de cada fonte." : escapeHtml(formatCamaraDate(proposition?.latestStatus?.dataHora || (!proposition?.statuses ? proposition?.statusDataHora : null)))}</dd></div>
+    ${proposition ? `<div class="details-wide"><dt>Encontrada em: ${escapeHtml(sourceNames(proposition))}</dt><dd>Projeto e ementa: ${escapeHtml(sourceLabel(proposition.source))} · ID ${escapeHtml(proposition.id)}. Consulta de ${escapeHtml(formatDateTime(proposition.consultadoEm))}.</dd></div>` : ""}
+    ${proposition?.statuses ? `<div class="details-wide"><dt>Situação legislativa na consulta</dt><dd>${statusDetails(proposition)}</dd></div>` : `<div class="details-wide"><dt>Situação legislativa</dt><dd>Registro anterior à coleta da situação. Edite e pesquise novamente para obter essa informação.</dd></div>`}
     ${record.matter ? `<div class="details-wide"><dt>Identificações da mesma matéria</dt><dd>${escapeHtml(matterIdentifications(record.matter.identifiers))}</dd></div>` : ""}
-    ${(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => `<div class="details-wide"><dt>Equivalência confirmada por relação oficial</dt><dd><a href="https://legis.senado.leg.br/dadosabertos/processo/${Number(identifier.evidence.id)}" target="_blank" rel="noopener noreferrer">Consultar vínculo no Senado</a> · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}</dd></div>`).join("")}
+    ${(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => `<div class="details-wide"><dt>Dados e relações oficiais do Senado</dt><dd><a href="https://legis.senado.leg.br/dadosabertos/processo/${Number(identifier.evidence.id)}" target="_blank" rel="noopener noreferrer">Consultar processo no Senado</a> · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}</dd></div>`).join("")}
   ` + (record.attachmentName ? `<div class="details-wide"><dt>Arquivo anexado</dt><dd><a href="/api/records/${record.id}/attachment">Baixar ${escapeHtml(record.attachmentName)}</a></dd></div>` : "");
   dialog.showModal();
 }
@@ -576,9 +581,43 @@ function matterIdentifications(identifiers = []) {
   }).join("\n");
 }
 
-function lookupMessage(message, error = false) {
+function sourceLabel(source) {
+  return source === "senado" ? "Senado Federal" : "Câmara dos Deputados";
+}
+
+function sourceNames(proposition) {
+  return (proposition.sources || [proposition.source || "camara"]).map(sourceLabel).join(" e ");
+}
+
+function situationText(proposition) {
+  const status = proposition.latestStatus;
+  if (status) return `${status.descricao || "Situação não informada pela fonte"} · ${sourceLabel(status.source)} · ${formatCamaraDate(status.dataHora)}`;
+  return proposition.statusComparison === "undated"
+    ? "Não é possível comparar a situação mais recente: uma das fontes não informou a data."
+    : "As datas coincidem ou não têm precisão suficiente para definir a situação mais recente.";
+}
+
+function statusDetails(proposition) {
+  return `<div class="legislative-status">
+    <strong>${proposition.statusComparison === "latest" ? "Situação mais recente: " : ""}${escapeHtml(situationText(proposition))}</strong>
+    ${(proposition.statuses || []).map((status) => `<div class="legislative-source">
+      <span>${escapeHtml(sourceLabel(status.source))} · ${escapeHtml(status.projeto)} · ${escapeHtml(formatCamaraDate(status.dataHora))}</span>
+      <span>${escapeHtml(status.descricao || "Situação não informada")}${status.tramitacao ? ` — ${escapeHtml(status.tramitacao)}` : ""}</span>
+      <small>Dados consultados em ${escapeHtml(formatDateTime(status.consultadoEm))}.</small>
+    </div>`).join("")}
+    <small>Informações salvas no momento da pesquisa; não são atualizadas em segundo plano.</small>
+  </div>`;
+}
+
+function showStatusPreview(proposition) {
+  elements.statusPreview.hidden = !proposition?.statuses;
+  elements.statusPreview.innerHTML = proposition?.statuses ? statusDetails(proposition) : "";
+}
+
+function lookupMessage(message, error = false, success = false) {
   elements.searchStatus.textContent = message;
   elements.searchStatus.dataset.error = String(error);
+  elements.searchStatus.dataset.success = String(success && !error);
 }
 
 function setLookupBusy(busy) {
@@ -598,24 +637,28 @@ function cancelLookup() {
 
 function resetLookup(record = null) {
   cancelLookup();
-  state.proposition = record?.camara || null;
+  state.proposition = record?.proposition || record?.camara || null;
+  state.lookupWarnings = [];
   state.propositionToken = "";
   state.searchToken = "";
   state.mustSearch = !record;
-  elements.searchType.value = record?.camara?.siglaTipo || "";
-  elements.searchNumber.value = record?.camara?.numero || "";
-  elements.searchYear.value = record?.camara?.ano || "";
+  elements.searchType.value = state.proposition?.siglaTipo || "";
+  elements.searchNumber.value = state.proposition?.numero || "";
+  elements.searchYear.value = state.proposition?.ano || "";
   elements.propositionResults.innerHTML = "";
   elements.propositionResults.hidden = true;
-  elements.form.elements.ementa.readOnly = !record || Boolean(record.camara);
-  elements.form.elements.ementa.required = Boolean(record && !record.camara);
-  lookupMessage(record ? (record.camara ? "Matéria já vinculada. Para trocar o projeto, pesquise pela numeração de qualquer uma das Casas." : "Cadastro anterior à integração. Para trocar o projeto, faça uma busca.") : "A pesquisa é obrigatória para criar um registro. Use a numeração da Câmara ou do Senado.");
+  elements.form.elements.ementa.readOnly = !record || Boolean(state.proposition);
+  elements.form.elements.ementa.required = Boolean(record && !state.proposition);
+  showStatusPreview(state.proposition);
+  lookupMessage(record ? (state.proposition ? `Matéria vinculada. Encontrada em: ${sourceNames(state.proposition)}. Para atualizar os dados ou trocar o projeto, pesquise novamente.` : "Cadastro anterior à integração. Para trocar o projeto, faça uma busca.") : "A pesquisa é obrigatória para criar um registro. Use a numeração da Câmara ou do Senado.");
 }
 
 function invalidateLookup() {
   cancelLookup();
   state.mustSearch = true;
   state.proposition = null;
+  state.lookupWarnings = [];
+  showStatusPreview(null);
   state.propositionToken = "";
   state.searchToken = "";
   elements.form.elements.projeto.value = "";
@@ -645,8 +688,8 @@ async function selectProposition(id, version = state.lookupVersion) {
     elements.form.elements.ementa.readOnly = true;
     elements.form.elements.ementa.required = false;
     elements.propositionResults.hidden = true;
-    const aliases = [...new Set((payload.proposition.identifiers || []).filter((identifier) => identifier.house === "SF").map((identifier) => `${identifier.siglaTipo} ${identifier.numero}/${identifier.ano}`))];
-    lookupMessage(`${payload.proposition.projeto} (Câmara) selecionado.${aliases.length ? ` Equivalente no Senado: ${aliases.join(", ")}.` : ""} Preencha a comissão e os demais campos.${payload.proposition.ementa ? "" : " A Câmara não informou uma ementa."}`);
+    showStatusPreview(payload.proposition);
+    lookupMessage(`Proposição encontrada com sucesso em: ${sourceNames(payload.proposition)}. ${payload.proposition.projeto} selecionado. Preencha a comissão e os demais campos.${payload.proposition.ementa ? "" : " A fonte não informou uma ementa."}${state.lookupWarnings.length ? ` Atenção: ${state.lookupWarnings.join(" ")}` : ""}`, false, true);
   } catch (error) {
     if (version === state.lookupVersion) lookupMessage(error.message, true);
   } finally {
@@ -672,19 +715,22 @@ async function searchPropositions() {
     const payload = await api(`/api/propositions?${new URLSearchParams({ siglaTipo, numero, ano })}`, { signal: state.lookupController.signal });
     if (version !== state.lookupVersion || !elements.dialog.open) return;
     state.searchToken = payload.searchToken;
+    state.lookupWarnings = payload.warnings || [];
     elements.propositionResults.innerHTML = payload.results.map((result) => `
-      <button class="proposition-result" type="button" data-proposition-id="${result.id}">
-        <strong>${escapeHtml(result.projeto)} · ID ${result.id}</strong>
+      <button class="proposition-result" type="button" data-proposition-id="${escapeHtml(result.selectionId)}">
+        <strong>${escapeHtml(result.projeto)} · ${escapeHtml(sourceLabel(result.source))} · ID ${result.id}</strong>
+        <span>Encontrada em: ${escapeHtml(sourceNames(result))}</span>
         <span>${escapeHtml((result.identifications || []).map((identity) => `${identity.house === "SF" ? "Senado" : "Câmara"}: ${identity.name}`).join(" ↔ "))}</span>
         <span>${escapeHtml(result.ementa || "Ementa não informada")}</span>
+        <span>Situação: ${escapeHtml(situationText(result))}</span>
         <small>Apresentação: ${escapeHtml(formatCamaraDate(result.dataApresentacao))} · Selecionar esta proposição</small>
       </button>
     `).join("");
     elements.propositionResults.hidden = payload.results.length === 0;
-    if (payload.results.length === 1 && !payload.requiresSelection) await selectProposition(payload.results[0].id, version);
+    if (payload.results.length === 1 && !payload.requiresSelection) await selectProposition(payload.results[0].selectionId, version);
     else {
       const warning = (payload.warnings || []).join(" ");
-      lookupMessage(`${warning}${warning ? " " : ""}${payload.results.length ? `${payload.results.length} matéria(s) encontrada(s). Confira as identificações e selecione a desejada abaixo.` : warning ? "Confira os dados ou tente novamente." : "Nenhuma proposição encontrada. Confira o tipo, número e ano e pesquise novamente."}`, !payload.results.length || Boolean(warning));
+      lookupMessage(`${warning}${warning ? " " : ""}${payload.results.length ? `${payload.results.length} matéria(s) encontrada(s). Confira as identificações e selecione a desejada abaixo. Resultados separados não possuem equivalência confirmada, mesmo que tenham o mesmo número.` : warning ? "Confira os dados ou tente novamente." : "Nenhuma proposição encontrada. Confira o tipo, número e ano e pesquise novamente."}`, !payload.results.length || Boolean(warning), payload.results.length > 0);
     }
   } catch (error) {
     if (version === state.lookupVersion) lookupMessage(error.message, true);
@@ -828,7 +874,7 @@ async function saveRecord(event) {
     });
     elements.form.elements.id.value = result.record.id;
     state.propositionToken = "";
-    state.proposition = result.record.camara;
+    state.proposition = result.record.proposition || result.record.camara;
     if (!id) {
       elements.deleteRecord.hidden = false;
       elements.dialogKicker.textContent = "Edição de cadastro";
@@ -1011,7 +1057,7 @@ function setupEvents() {
   }
   elements.propositionResults.addEventListener("click", (event) => {
     const button = event.target.closest("[data-proposition-id]");
-    if (button && !state.lookupBusy) selectProposition(Number(button.dataset.propositionId));
+    if (button && !state.lookupBusy) selectProposition(button.dataset.propositionId);
   });
   elements.dialog.addEventListener("close", cancelLookup);
   let searchTimer;

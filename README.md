@@ -34,15 +34,19 @@ No novo cadastro, selecione um dos 12 tipos disponíveis e digite número e ano.
 
 Para resultados do Senado, `/dadosabertos/processo/{id}` fornece os vínculos em `identificacaoProcessoInicial`, `idProcessoCasaInicial`, `siglaCasaIniciadora` e `outrosNumeros`. A referência explícita à Câmara é validada pela pesquisa correspondente nessa Casa. Não há comparação por similaridade de ementa ou título. Se a referência não identificar um único ID da Câmara, o sistema informa a ambiguidade e não cria a equivalência.
 
-Um resultado único e sem pendências é selecionado automaticamente; múltiplos resultados exigem escolha. Se uma fonte falhar e a outra tiver resultados, há aviso e escolha explícita, sem armazenar a busca parcial no cache. Proposições existentes apenas no Senado, sem vínculo confirmável com a Câmara, são informadas, mas ainda não podem ser cadastradas nesta integração.
+Um resultado único e sem pendências é selecionado automaticamente; múltiplos resultados exigem escolha. Proposições encontradas somente no Senado ou somente na Câmara também podem ser selecionadas e cadastradas. A confirmação verde informa a(s) fonte(s). Se uma fonte falhar e a outra tiver resultados, há aviso e escolha explícita, sem armazenar a busca parcial no cache. Uma falha no detalhe não esconde dados válidos já retornados pela pesquisa, mas a ausência de informações é sinalizada.
 
 O teste de referência é **PL 3361/2025 (Senado) = PL 7108/2017 (Câmara)**. Os IDs são separados: proposição da Câmara `2125467`, processo no Senado `8862684`, código de matéria do Senado `169542` e processo inicial no sistema do Senado `8862683`. Este último NÃO é um ID da API da Câmara.
 
-Projeto, ementa e datas continuam tendo a Câmara como fonte principal; comissão e os demais campos permanecem manuais. Os detalhes exibem também as identificações equivalentes, os IDs de cada sistema e a fonte do vínculo. A pesquisa textual dos registros reconhece ambas as numerações. As datas são uma fotografia da consulta, sem atualização em segundo plano.
+Projeto, ementa e apresentação usam a Câmara quando a equivalência é confirmada; em resultados exclusivos do Senado, usam os dados do Senado. Comissão e os demais campos permanecem manuais. A situação vem de `statusProposicao.descricaoSituacao` / `dataHora` na Câmara e `situacaoAtual` / `dataSituacaoAtual` no Senado. Para uma matéria confirmada nas duas Casas (inclusive com a mesma numeração), a situação com data mais recente é destacada, com fonte, identificação e data; as situações de ambas as fontes também ficam disponíveis. A data de atualização geral do processo NÃO substitui a data da situação.
 
-O SQLite tem uma tabela `legislative_matters` com ID interno e ID da Câmara único; `legislative_identifiers` armazena identificações separadas por origem e seus vínculos oficiais; `proposition_search_cache` guarda buscas completas por até 24 horas. O resultado de buscas repetidas e detalhes recentes pode ser reutilizado sem novas chamadas externas. Os vínculos permanecem no banco mesmo depois do vencimento do cache. Os registros em `records` apontam para uma matéria por `matter_id`.
+Datas ausentes, empatadas ou sem precisão para comparação (dia inteiro no Senado versus horário nesse mesmo dia na Câmara) exibem as duas situações sem afirmar qual é a mais recente. Código igual sem relação oficial não une matérias: são opções separadas, cada uma com sua situação e fonte. Os detalhes exibem também as identificações equivalentes e os IDs de cada sistema. A pesquisa textual dos registros reconhece ambas as numerações. Todas essas informações são uma fotografia da pesquisa, sem atualização em segundo plano; para atualizar um registro, edite, pesquise e salve novamente (consultas completas podem ser reutilizadas por até 24 horas).
+
+O SQLite tem uma tabela `legislative_matters` com ID interno, ID da Câmara único e opcional, e snapshots separados de cada provedor; `legislative_identifiers` armazena identificações separadas por origem e seus vínculos oficiais; `proposition_search_cache` guarda buscas completas por até 24 horas. Os vínculos permanecem no banco mesmo depois do vencimento do cache. Os registros em `records` apontam para uma matéria por `matter_id`, mantêm o antigo `camara_json` para compatibilidade e salvam a fotografia completa da consulta em `proposition_json`. Uma pesquisa posterior não altera silenciosamente a situação salva em outro registro.
 
 Uma matéria pode receber registros de áreas ou responsáveis diferentes. Um segundo registro para a mesma matéria, área e responsável é bloqueado, inclusive quando pesquisado pela outra numeração. Registros antigos com ID oficial são associados automaticamente à identidade da matéria; registros sem ID não são unificados por texto. Nenhum registro ou anexo antigo é removido. Duplicidades históricas são preservadas e podem continuar sendo editadas.
+
+Se um registro inicialmente exclusivo do Senado receber posteriormente uma equivalência oficial com a Câmara, as identidades são consolidadas em transação. Os registros e anexos existentes são preservados, inclusive eventuais duplicidades históricas. A migração retira a obrigatoriedade do ID da Câmara mantendo os IDs internos e verificando as chaves estrangeiras. Recomenda-se backup do SQLite e dos uploads antes de atualizar o servidor.
 
 Sem uma seleção válida, o novo registro não pode ser salvo. A seleção fica válida por duas horas; se o servidor reiniciar antes de salvar, faça a busca novamente. O servidor precisa de acesso HTTPS a `dadosabertos.camara.leg.br` e `legis.senado.leg.br`.
 
@@ -54,7 +58,7 @@ Os registros anteriores à integração permanecem disponíveis e editáveis sem
 - `lib/senado.js`: cliente do Senado e extração exclusiva de relações oficiais.
 - `lib/propositions.js`: coordenação da pesquisa, escolha, cache e comprovação da seleção.
 - `lib/database.js`: persistência das matérias, identificações, registros e cache.
-- `server.js`: expõe `/api/propositions` e `/api/propositions/{id}`; mantém as rotas antigas de consulta como aliases de compatibilidade.
+- `server.js`: expõe `/api/propositions` e `/api/propositions/{selectionId}`. A seleção usa `camara-{id}` ou `senado-{id}`, nunca IDs misturados; IDs numéricos e rotas antigas continuam aliases da Câmara.
 
 ## Verificação
 

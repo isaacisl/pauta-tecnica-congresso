@@ -97,9 +97,13 @@ test("sem referência explícita ou com múltiplos IDs candidatos não inventa e
     const { database, service } = setup(options);
     try {
       const result = await service.search(query());
-      assert.equal(result.results.length, 0);
-      assert.ok(result.warnings.length);
+      assert.equal(result.results.length, 1);
+      assert.equal(result.results[0].source, "senado");
+      if (options.cameraAmbiguous) assert.ok(result.warnings.length);
       assert.equal(database.getMatterBySenadoId(senate.id), null);
+      const selected = await service.select(result.results[0].selectionId, result.searchToken);
+      assert.equal(selected.proposition.source, "senado");
+      assert.equal(database.getMatterBySenadoId(senate.id).camara, null);
     } finally { database.close(); }
   }
 });

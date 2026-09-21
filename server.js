@@ -259,10 +259,10 @@ export async function startServer({
         return;
       }
 
-      const propositionMatch = pathname.match(/^\/api\/(?:propositions|camara\/proposicoes)\/(\d+)$/);
+      const propositionMatch = pathname.match(/^\/api\/(?:propositions|camara\/proposicoes)\/((?:(?:camara|senado)-)?\d+)$/);
       if (propositionMatch && request.method === "POST") {
         const { searchToken } = await readJson(request);
-        send(response, 200, await propositions.select(Number(propositionMatch[1]), searchToken));
+        send(response, 200, await propositions.select(propositionMatch[1], searchToken));
         return;
       }
 

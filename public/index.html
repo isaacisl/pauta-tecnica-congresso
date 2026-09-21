@@ -3,18 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Gestão local de projetos prioritários por área técnica." />
-    <title>Pauta Técnica</title>
-    <link rel="stylesheet" href="/styles.css?v=20260918-1" />
+    <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
+    <meta name="theme-color" content="#004587" />
+    <title>Pauta Técnica | CNM</title>
+    <link rel="stylesheet" href="/styles.css?v=20260921-2" />
   </head>
   <body>
     <header class="app-header">
       <div class="header-inner">
-        <a class="brand" href="#registros" aria-label="Pauta Técnica — página inicial">
-          <span class="brand-mark" aria-hidden="true">
-            <span></span><span></span><span></span><span></span>
-          </span>
-          <span>
+        <a class="brand" href="#registros" aria-label="CNM — Pauta Técnica — página inicial">
+          <img class="cnm-logo" src="/assets/logo-cnm.png" alt="Confederação Nacional de Municípios" width="1778" height="853" />
+          <span class="brand-product">
             <strong>Pauta Técnica</strong>
             <small>Projetos prioritários</small>
           </span>
@@ -36,6 +35,7 @@
           Base local
         </div>
       </div>
+      <svg class="institutional-wave" viewBox="0 0 1440 12" preserveAspectRatio="none" aria-hidden="true"><path fill="#ffcf00" d="M0 0C320 18 690 10 960 3S1280 0 1440 5V12H0Z"/><path fill="#009c43" d="M0 5C320 20 690 15 960 7S1280 4 1440 9V12H0Z"/></svg>
     </header>
 
     <main class="page-shell">
@@ -258,6 +258,7 @@
         </div>
       </section>
     </main>
+    <footer class="institutional-footer"><span>CNM · Confederação Nacional de Municípios</span><span>Município forte. Brasil forte.</span></footer>
 
     <dialog id="details-dialog" class="record-dialog details-dialog" aria-labelledby="details-title">
       <div class="details-layout">
@@ -288,7 +289,7 @@
           <div class="form-grid">
             <section class="proposition-search form-span-2" aria-labelledby="proposition-search-title">
               <h3 id="proposition-search-title">Buscar proposição na Câmara e no Senado</h3>
-              <p>Selecione o tipo e informe número e ano de qualquer uma das Casas. O sistema identifica as numerações equivalentes e preenche projeto e ementa com os dados da Câmara.</p>
+              <p>Informe tipo, número e ano. A busca aceita proposições da Câmara ou do Senado e preenche projeto, ementa e situação com a indicação da fonte. Comissão e demais campos são manuais.</p>
               <div class="proposition-search-fields">
                 <label class="field"><span>Tipo</span><select id="search-type"><option value="">Selecione o tipo</option></select></label>
                 <label class="field"><span>Número</span><input id="search-number" type="text" inputmode="numeric" maxlength="9" placeholder="Ex.: 1234" /></label>
@@ -296,6 +297,7 @@
                 <button id="search-proposition" class="button button-primary" type="button">Pesquisar</button>
               </div>
               <p id="proposition-search-status" role="status" aria-live="polite"></p>
+              <div id="proposition-status-preview" hidden></div>
               <div id="proposition-results" class="proposition-results" hidden></div>
             </section>
             <label class="field">
@@ -315,7 +317,7 @@
             </label>
             <label class="field form-span-2">
               <span>Ementa <b aria-hidden="true">*</b></span>
-              <textarea id="field-ementa" name="ementa" rows="4" maxlength="6000" placeholder="Preenchida pela busca na Câmara" readonly></textarea>
+              <textarea id="field-ementa" name="ementa" rows="4" maxlength="6000" placeholder="Preenchida pela busca legislativa" readonly></textarea>
               <small class="field-error" data-error-for="ementa"></small>
             </label>
             <label class="field form-span-2">
@@ -459,6 +461,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260918-1"></script>
+    <script type="module" src="/app.js?v=20260921-2"></script>
   </body>
 </html>
