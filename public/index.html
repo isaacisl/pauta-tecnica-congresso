@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20260928-2" />
+    <link rel="stylesheet" href="/styles.css?v=20260928-4" />
   </head>
   <body>
     <header class="app-header">
@@ -311,7 +311,7 @@
         <div class="form-steps" aria-label="Etapas do cadastro">
           <button id="step-project" class="form-step is-current" type="button" data-form-step="project" aria-current="step"><span class="step-number">1</span><span>Projeto</span></button>
           <span class="step-connector" aria-hidden="true"></span>
-          <button id="step-followup" class="form-step" type="button" data-form-step="followup"><span class="step-number">2</span><span>Área e acompanhamento</span></button>
+          <button id="step-followup" class="form-step" type="button" data-form-step="followup"><span class="step-number">2</span><span>Responsável</span></button>
         </div>
 
         <div class="dialog-body">
@@ -357,7 +357,8 @@
           </div>
           </section>
           <section id="form-stage-followup" class="form-stage" aria-labelledby="form-followup-title" hidden>
-            <div class="stage-heading"><span class="section-kicker">Etapa 2 de 2</span><h3 id="form-followup-title">Área e acompanhamento</h3><p>Defina o responsável, registre a análise e acompanhe os documentos.</p></div>
+            <div class="selected-project" aria-label="Projeto em acompanhamento"><span>Projeto em acompanhamento</span><strong id="selected-project-name"></strong></div>
+            <div class="stage-heading"><span class="section-kicker">Etapa 2 de 2</span><h3 id="form-followup-title">Responsável</h3><p>Defina a área e a pessoa responsável, registre a análise e acompanhe os documentos.</p></div>
           <div class="form-grid">
             <label class="field">
               <span>Área técnica <b aria-hidden="true">*</b></span>
@@ -505,6 +506,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260928-2"></script>
+    <script type="module" src="/app.js?v=20260928-4"></script>
   </body>
 </html>

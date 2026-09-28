@@ -73,6 +73,7 @@ const elements = {
   formBody: document.querySelector("#record-form > .dialog-body"),
   formProject: document.querySelector("#form-stage-project"),
   formFollowup: document.querySelector("#form-stage-followup"),
+  selectedProjectName: document.querySelector("#selected-project-name"),
   stepProject: document.querySelector("#step-project"),
   stepFollowup: document.querySelector("#step-followup"),
   previousStage: document.querySelector("#previous-stage"),
@@ -621,6 +622,7 @@ function showFieldErrors(fields = {}) {
 
 function showFormStep(step, focus = false) {
   state.formStep = step;
+  if (step === "followup") elements.selectedProjectName.textContent = elements.form.elements.projeto.value.trim();
   elements.formProject.hidden = step !== "project";
   elements.formFollowup.hidden = step !== "followup";
   elements.previousStage.hidden = step === "project";
