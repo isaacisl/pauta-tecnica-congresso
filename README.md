@@ -16,17 +16,22 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 
 - cadastro, edição e exclusão de registros;
 - busca obrigatória de novas proposições por tipo, número e ano na Câmara e no Senado, com equivalências oficiais e projeto/ementa automáticos;
+- despacho e comissão atual sugeridos automaticamente quando disponíveis, sempre editáveis e opcionais;
 - listas de áreas, responsáveis e status baseadas na aba `Parâmetros` da planilha original;
 - filtros por área técnica, responsável, parecer, sugestão de emenda e posicionamento;
 - busca por projeto, ementa, comissão ou responsável;
 - aba de totalização filtrável, com quantidades e percentuais por área e pelos três campos de status;
 - exportação protegida por senha da base completa ou filtrada em CSV compatível com Excel;
-- anexos opcionais em PDF, documentos do Office, texto ou imagem;
+- histórico de múltiplos documentos em PDF, Office, texto ou imagem, com data de inclusão e download individual;
 - datas de inclusão e de última edição, além de proteção contra fechamento com alterações não salvas.
 
 ## Persistência
 
 A base é criada automaticamente em `data/registros.sqlite`, e os anexos ficam em `data/uploads/`. Ambos são ignorados pelo Git: atualizações de código não substituem esses dados. Para um backup completo, preserve o arquivo SQLite e a pasta de uploads.
+
+O campo de documentos fica abaixo de “Há parecer elaborado?”. É possível selecionar vários arquivos (até 20 MB cada), na criação ou na edição. Ao salvar, cada arquivo é acrescentado ao histórico com sua própria data, sem substituir documentos anteriores, mesmo com nomes iguais. O histórico aparece na edição e nos detalhes. Arquivos pendentes podem ser retirados da seleção; documentos já salvos permanecem no histórico. A exclusão do registro também exclui seus documentos.
+
+Os metadados ficam em `record_attachments`. Na primeira inicialização desta versão, os anexos antigos são migrados automaticamente, mantendo os arquivos em seus locais originais. Como a versão anterior não registrava a data de envio separadamente, esses arquivos mostram “Data de inclusão não registrada”. Os novos documentos recebem a data do servidor. Envios interrompidos podem ser repetidos no mesmo formulário sem duplicar um arquivo já recebido.
 
 ## Consulta legislativa e equivalências
 
@@ -38,7 +43,7 @@ Um resultado único e sem pendências é selecionado automaticamente; múltiplos
 
 O teste de referência é **PL 3361/2025 (Senado) = PL 7108/2017 (Câmara)**. Os IDs são separados: proposição da Câmara `2125467`, processo no Senado `8862684`, código de matéria do Senado `169542` e processo inicial no sistema do Senado `8862683`. Este último NÃO é um ID da API da Câmara.
 
-Projeto, ementa e apresentação usam a Câmara quando a equivalência é confirmada; em resultados exclusivos do Senado, usam os dados do Senado. Comissão e os demais campos permanecem manuais. A situação vem de `statusProposicao.descricaoSituacao` / `dataHora` na Câmara e `situacaoAtual` / `dataSituacaoAtual` no Senado. Para uma matéria confirmada nas duas Casas (inclusive com a mesma numeração), a situação com data mais recente é destacada, com fonte, identificação e data; as situações de ambas as fontes também ficam disponíveis. A data de atualização geral do processo NÃO substitui a data da situação.
+Projeto, ementa e apresentação usam a Câmara quando a equivalência é confirmada; em resultados exclusivos do Senado, usam os dados do Senado. A busca também tenta obter o despacho de distribuição e a comissão atual. Na Câmara, consulta `/proposicoes/{id}/tramitacoes`, seleciona o despacho formal mais recente e o órgão da última tramitação, com `statusProposicao.siglaOrgao` como alternativa para o órgão. No Senado, consulta `autuacoes[].siglaColegiadoAtual` em `/processo/{id}` e os despachos explícitos do processo ou de `/materia/movimentacoes/{codigoMateria}.json`. Se houver dados das duas Casas, despacho e comissão seguem a Casa com situação datada mais recente; se não for possível defini-la, seguem a Casa da identificação principal. Esses dois campos são sugestões, podem ser corrigidos ou deixados em branco. Falha ou ausência desses dados não bloqueia a seleção; o formulário avisa e permite preenchimento manual. Os demais campos permanecem manuais. A situação vem de `statusProposicao.descricaoSituacao` / `dataHora` na Câmara e `situacaoAtual` / `dataSituacaoAtual` no Senado. Para uma matéria confirmada nas duas Casas (inclusive com a mesma numeração), a situação com data mais recente é destacada, com fonte, identificação e data; as situações de ambas as fontes também ficam disponíveis. A data de atualização geral do processo NÃO substitui a data da situação.
 
 Datas ausentes, empatadas ou sem precisão para comparação (dia inteiro no Senado versus horário nesse mesmo dia na Câmara) exibem as duas situações sem afirmar qual é a mais recente. Código igual sem relação oficial não une matérias: são opções separadas, cada uma com sua situação e fonte. Os detalhes exibem também as identificações equivalentes e os IDs de cada sistema. A pesquisa textual dos registros reconhece ambas as numerações. Todas essas informações são uma fotografia da pesquisa, sem atualização em segundo plano; para atualizar um registro, edite, pesquise e salve novamente (consultas completas podem ser reutilizadas por até 24 horas).
 

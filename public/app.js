@@ -3,6 +3,12 @@ const state = {
   recordFilterOptions: null,
   totalFilterOptions: null,
   records: [],
+  recordsPage: 1,
+  recordsPageSize: 10,
+  recordsFilterKey: null,
+  recordsLoading: false,
+  recordsSearchTimer: null,
+  pendingAttachments: [],
   totals: null,
   requestId: 0,
   totalsRequestId: 0,
@@ -10,6 +16,7 @@ const state = {
   recordFormBaseline: "",
   proposition: null,
   propositionToken: "",
+  lookupPreviousProject: "",
   lookupWarnings: [],
   searchToken: "",
   mustSearch: false,
@@ -47,6 +54,10 @@ const elements = {
   tableLoading: document.querySelector("#table-loading"),
   tableWrapper: document.querySelector("#table-wrapper"),
   recordsBody: document.querySelector("#records-body"),
+  pagination: document.querySelector("#records-pagination"),
+  pageSize: document.querySelector("#records-page-size"),
+  pageRange: document.querySelector("#records-page-range"),
+  pagePosition: document.querySelector("#records-page-position"),
   emptyState: document.querySelector("#empty-state"),
   emptyTitle: document.querySelector("#empty-title"),
   emptyDescription: document.querySelector("#empty-description"),
@@ -65,6 +76,8 @@ const elements = {
   searchStatus: document.querySelector("#proposition-search-status"),
   statusPreview: document.querySelector("#proposition-status-preview"),
   propositionResults: document.querySelector("#proposition-results"),
+  despachoHelp: document.querySelector("#despacho-help"),
+  comissaoHelp: document.querySelector("#comissao-help"),
   dialogKicker: document.querySelector("#dialog-kicker"),
   dialogTitle: document.querySelector("#dialog-title"),
   closeDialog: document.querySelector("#close-dialog"),
@@ -75,10 +88,8 @@ const elements = {
   saveLoading: document.querySelector("#save-record .button-loading"),
   attachmentInput: document.querySelector("#field-attachment"),
   existingAttachment: document.querySelector("#existing-attachment"),
-  existingAttachmentName: document.querySelector("#existing-attachment-name"),
-  existingAttachmentSize: document.querySelector("#existing-attachment-size"),
-  downloadAttachment: document.querySelector("#download-attachment"),
-  removeAttachment: document.querySelector("#remove-attachment"),
+  attachmentHistory: document.querySelector("#attachment-history"),
+  pendingAttachments: document.querySelector("#pending-attachments"),
   recordHistory: document.querySelector("#record-history"),
   recordCreatedAt: document.querySelector("#record-created-at"),
   recordEditedHistory: document.querySelector("#record-edited-history"),
@@ -105,6 +116,7 @@ const labels = Object.freeze([
   ["Responsável", "responsavel"],
   ["Projeto", "projeto"],
   ["Ementa", "ementa"],
+  ["Despacho", "despacho"],
   ["Atual comissão", "atualComissao"],
   ["Parecer", "haParecer"],
   ["Emenda", "sugestaoEmenda"],
@@ -222,6 +234,10 @@ function currentTotalFilters() {
   return filtersFromForm(elements.totalsFilterForm);
 }
 
+function updateClearFilterButton(form, button) {
+  button.disabled = filtersFromForm(form).size === 0;
+}
+
 function hasActiveFilters() {
   return currentFilters().size > 0;
 }
@@ -250,10 +266,27 @@ function statusChip(value) {
   return `<span class="status-chip ${chipClass(value)}">${escapeHtml(value)}</span>`;
 }
 
+function officialLinks(record) {
+  const identifiers = record.matter?.identifiers || [];
+  const validId = (value) => Number.isSafeInteger(value) && value > 0;
+  const camaraId = identifiers.find((identifier) => identifier.source === "camara" && validId(identifier.externalId))?.externalId
+    || (validId(record.camara?.id) ? record.camara.id : null)
+    || (record.proposition?.source === "camara" && validId(record.proposition.id) ? record.proposition.id : null);
+  const senado = identifiers.find((identifier) => identifier.source === "senado" && identifier.house === "SF"
+    && identifier.externalId === record.proposition?.id && validId(identifier.codigoMateria))
+    || identifiers.find((identifier) => identifier.source === "senado" && identifier.house === "SF" && validId(identifier.codigoMateria));
+
+  return [
+    ...(camaraId ? [{ source: "camara", label: "Câmara dos Deputados", href: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${camaraId}` }] : []),
+    ...(senado ? [{ source: "senado", label: "Senado Federal", href: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${senado.codigoMateria}` }] : [])
+  ];
+}
+
 function openRecordDetails(id) {
   const record = state.records.find((item) => item.id === id);
   if (!record) return;
   const proposition = record.proposition || record.camara;
+  const links = officialLinks(record);
   const dialog = document.querySelector("#details-dialog");
   dialog.dataset.recordId = String(id);
   const fields = [...labels, ["Data de inclusão", "createdAt"]];
@@ -261,22 +294,62 @@ function openRecordDetails(id) {
   document.querySelector("#details-content").innerHTML = fields.map(([label, field]) => {
     const value = field.endsWith("At") ? formatDateTime(record[field]) : record[field];
     const content = ["haParecer", "sugestaoEmenda", "posicionamento"].includes(field) && value ? statusChip(value) : escapeHtml(value || "Não informado");
-    return `<div class="${["projeto", "ementa"].includes(field) ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${content}</dd></div>`;
+    return `<div class="${["projeto", "ementa", "despacho"].includes(field) ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${content}</dd></div>`;
   }).join("") + `
     <div><dt>Data de apresentação (início)</dt><dd>${escapeHtml(formatCamaraDate(proposition?.dataApresentacao))}${proposition ? ` · ${escapeHtml(sourceLabel(proposition.source))}` : ""}</dd></div>
     <div><dt>Data e hora da situação</dt><dd>${proposition?.statuses?.length > 1 && !proposition.latestStatus ? "Confira abaixo as datas de cada fonte." : escapeHtml(formatCamaraDate(proposition?.latestStatus?.dataHora || (!proposition?.statuses ? proposition?.statusDataHora : null)))}</dd></div>
     ${proposition ? `<div class="details-wide"><dt>Encontrada em: ${escapeHtml(sourceNames(proposition))}</dt><dd>Projeto e ementa: ${escapeHtml(sourceLabel(proposition.source))} · ID ${escapeHtml(proposition.id)}. Consulta de ${escapeHtml(formatDateTime(proposition.consultadoEm))}.</dd></div>` : ""}
     ${proposition?.statuses ? `<div class="details-wide"><dt>Situação legislativa na consulta</dt><dd>${statusDetails(proposition)}</dd></div>` : `<div class="details-wide"><dt>Situação legislativa</dt><dd>Registro anterior à coleta da situação. Edite e pesquise novamente para obter essa informação.</dd></div>`}
+    ${links.length ? `<div class="details-wide"><dt>Páginas oficiais da matéria</dt><dd class="official-links">${links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("")}</dd></div>` : ""}
     ${record.matter ? `<div class="details-wide"><dt>Identificações da mesma matéria</dt><dd>${escapeHtml(matterIdentifications(record.matter.identifiers))}</dd></div>` : ""}
     ${(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => `<div class="details-wide"><dt>Dados e relações oficiais do Senado</dt><dd><a href="https://legis.senado.leg.br/dadosabertos/processo/${Number(identifier.evidence.id)}" target="_blank" rel="noopener noreferrer">Consultar processo no Senado</a> · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}</dd></div>`).join("")}
-  ` + (record.attachmentName ? `<div class="details-wide"><dt>Arquivo anexado</dt><dd><a href="/api/records/${record.id}/attachment">Baixar ${escapeHtml(record.attachmentName)}</a></dd></div>` : "");
+  ` + (record.attachments?.length ? `<div class="details-wide"><dt>Histórico de documentos (${record.attachments.length})</dt><dd>${attachmentHistoryMarkup(record)}</dd></div>` : "");
   dialog.showModal();
+}
+
+function renderPagination() {
+  const total = state.records.length;
+  const pages = Math.max(1, Math.ceil(total / state.recordsPageSize));
+  state.recordsPage = Math.max(1, Math.min(state.recordsPage, pages));
+  const start = total ? (state.recordsPage - 1) * state.recordsPageSize + 1 : 0;
+  const end = Math.min(state.recordsPage * state.recordsPageSize, total);
+  elements.pageSize.value = String(state.recordsPageSize);
+  elements.pageSize.disabled = state.recordsLoading;
+  elements.pageRange.textContent = state.recordsLoading
+    ? "Atualizando registros…"
+    : `Exibindo ${start}–${end} de ${countText(total)}`;
+  elements.pagePosition.textContent = `Página ${total ? state.recordsPage : 0} de ${total ? pages : 0}`;
+  for (const button of elements.pagination.querySelectorAll("[data-page-action]")) {
+    const backwards = ["first", "previous"].includes(button.dataset.pageAction);
+    button.disabled = state.recordsLoading || !total || (backwards ? state.recordsPage === 1 : state.recordsPage === pages);
+  }
+}
+
+function setRecordsLoading(loading) {
+  state.recordsLoading = loading;
+  elements.tableWrapper.setAttribute("aria-busy", String(loading));
+  elements.tableWrapper.inert = loading;
+  renderPagination();
+}
+
+function changeRecordsPage(action) {
+  if (state.recordsLoading) return;
+  const pages = Math.max(1, Math.ceil(state.records.length / state.recordsPageSize));
+  const target = { first: 1, previous: state.recordsPage - 1, next: state.recordsPage + 1, last: pages }[action];
+  if (!Number.isInteger(target) || target < 1 || target > pages || target === state.recordsPage) return;
+  state.recordsPage = target;
+  renderRecords();
+  document.querySelector("#table-title").scrollIntoView({ block: "start", behavior: "instant" });
 }
 
 function renderRecords() {
   const records = state.records;
-  elements.recordsBody.innerHTML = records
+  renderPagination();
+  const offset = (state.recordsPage - 1) * state.recordsPageSize;
+  elements.recordsBody.innerHTML = records.slice(offset, offset + state.recordsPageSize)
     .map((record) => {
+      const links = officialLinks(record);
+      const preferredLink = links.find((link) => link.source === record.proposition?.source) || links[0];
       const cells = labels.filter(([, field]) => ["areaTecnica", "responsavel", "projeto", "posicionamento"].includes(field)).map(([label, field]) => {
         const isStatus = ["haParecer", "sugestaoEmenda", "posicionamento"].includes(field);
         const content = isStatus
@@ -297,10 +370,11 @@ function renderRecords() {
             <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Ver detalhes de ${escapeHtml(record.projeto)}" title="Ver detalhes do registro">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
+            ${preferredLink ? `<a class="row-action official-action" href="${preferredLink.href}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${escapeHtml(record.projeto)} no site oficial: ${escapeHtml(preferredLink.label)}" title="Abrir no site oficial: ${escapeHtml(preferredLink.label)}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>` : ""}
             ${record.attachmentName ? `
-              <a class="row-action attachment-action" href="/api/records/${record.id}/attachment" aria-label="Baixar ${escapeHtml(record.attachmentName)}" title="Baixar ${escapeHtml(record.attachmentName)}">
+              <button type="button" class="row-action attachment-action" data-details-id="${record.id}" aria-label="Ver documentos de ${escapeHtml(record.projeto)}" title="Ver histórico de documentos (${record.attachments?.length || 1})">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 12.5 14.5 6a3 3 0 0 1 4.2 4.2l-8.2 8.2a5 5 0 0 1-7.1-7.1l8-8" /></svg>
-              </a>
+              </button>
             ` : ""}
             <button class="row-action" type="button" data-edit-id="${record.id}" aria-label="Editar ${escapeHtml(record.projeto)}" title="Editar registro">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" /></svg>
@@ -317,6 +391,7 @@ function renderRecords() {
   elements.tableLoading.hidden = true;
   elements.tableWrapper.hidden = records.length === 0;
   elements.emptyState.hidden = records.length > 0;
+  elements.pagination.hidden = false;
 
   if (!records.length) {
     const filtered = hasActiveFilters();
@@ -330,7 +405,11 @@ function renderRecords() {
 }
 
 async function loadRecords({ showLoading = false } = {}) {
+  window.clearTimeout(state.recordsSearchTimer);
+  state.recordsSearchTimer = null;
   const requestId = ++state.requestId;
+  setRecordsLoading(true);
+  updateClearFilterButton(elements.filterForm, elements.clearFilters);
   if (showLoading) {
     elements.tableLoading.hidden = false;
     elements.tableWrapper.hidden = true;
@@ -350,12 +429,17 @@ async function loadRecords({ showLoading = false } = {}) {
       await loadRecords({ showLoading });
       return;
     }
+    if (state.recordsFilterKey !== params.toString()) state.recordsPage = 1;
+    state.recordsFilterKey = params.toString();
     state.records = payload.records;
     renderRecords();
   } catch (error) {
     if (requestId !== state.requestId) return;
     elements.tableLoading.hidden = true;
+    elements.tableWrapper.hidden = state.records.length === 0;
     showToast(error.message, "error");
+  } finally {
+    if (requestId === state.requestId) setRecordsLoading(false);
   }
 }
 
@@ -437,6 +521,7 @@ function renderTotals() {
 
 async function loadTotals() {
   const requestId = ++state.totalsRequestId;
+  updateClearFilterButton(elements.totalsFilterForm, elements.clearTotalsFilters);
   try {
     const params = currentTotalFilters();
     const suffix = params.size ? `?${params}` : "";
@@ -502,17 +587,31 @@ function formatFileSize(bytes) {
 }
 
 function renderExistingAttachment(record) {
-  const hasAttachment = Boolean(record?.attachmentName);
-  elements.existingAttachment.hidden = !hasAttachment;
-  if (!hasAttachment) {
-    elements.existingAttachmentName.textContent = "";
-    elements.existingAttachmentSize.textContent = "";
-    elements.downloadAttachment.removeAttribute("href");
-    return;
+  elements.existingAttachment.hidden = !record?.attachments?.length;
+  elements.attachmentHistory.innerHTML = record ? attachmentHistoryMarkup(record) : "";
+}
+
+function attachmentHistoryMarkup(record) {
+  return `<ul class="document-list">${(record.attachments || []).map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(formatFileSize(file.size))} · ${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))}` : "Data de inclusão não registrada (arquivo anterior ao histórico)"}</small></div><a class="text-button attachment-link" href="/api/records/${record.id}/attachments/${file.id}" aria-label="Baixar ${escapeHtml(file.name)}">Baixar</a></li>`).join("")}</ul>`;
+}
+
+function renderPendingAttachments() {
+  elements.pendingAttachments.hidden = !state.pendingAttachments.length;
+  elements.pendingAttachments.innerHTML = state.pendingAttachments.map((item, index) => `<li class="document-item"><div><strong>${escapeHtml(item.file.name)}</strong><small>${escapeHtml(formatFileSize(item.file.size))} · Aguardando salvar</small></div><button type="button" class="text-button" data-remove-pending="${index}" aria-label="Retirar ${escapeHtml(item.file.name)} da seleção">Retirar</button></li>`).join("");
+}
+
+function queueAttachments() {
+  for (const file of elements.attachmentInput.files) {
+    const error = attachmentValidationMessage(file);
+    if (error) { showToast(`${file.name}: ${error}`, "error"); continue; }
+    if (state.pendingAttachments.some(item => item.file.name === file.name && item.file.size === file.size && item.file.lastModified === file.lastModified)) continue;
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    const uploadKey = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    state.pendingAttachments.push({ file, uploadKey });
   }
-  elements.existingAttachmentName.textContent = record.attachmentName;
-  elements.existingAttachmentSize.textContent = formatFileSize(record.attachmentSize);
-  elements.downloadAttachment.href = `/api/records/${record.id}/attachment`;
+  elements.attachmentInput.value = "";
+  renderPendingAttachments();
 }
 
 function formatDateTime(value) {
@@ -549,12 +648,13 @@ function attachmentValidationMessage(file) {
   return "";
 }
 
-async function uploadAttachment(recordId, file) {
-  const response = await fetch(`/api/records/${recordId}/attachment`, {
+async function uploadAttachment(recordId, file, uploadKey) {
+  const response = await fetch(`/api/records/${recordId}/attachments`, {
     method: "POST",
     headers: {
       "Content-Type": file.type || "application/octet-stream",
-      "X-File-Name": encodeURIComponent(file.name)
+      "X-File-Name": encodeURIComponent(file.name),
+      "X-Upload-Id": uploadKey
     },
     body: file
   });
@@ -614,6 +714,17 @@ function showStatusPreview(proposition) {
   elements.statusPreview.innerHTML = proposition?.statuses ? statusDetails(proposition) : "";
 }
 
+function showNavigationHints(proposition, selected = false) {
+  const source = proposition?.navigationSource ? sourceLabel(proposition.navigationSource) : "fonte oficial";
+  const saved = proposition && !selected;
+  elements.despachoHelp.textContent = selected
+    ? proposition.despacho ? `Obtido da ${source}. Confira e ajuste se necessário.` : "Despacho não localizado na consulta. Você pode informar manualmente ou deixar em branco."
+    : saved ? "Valor salvo no registro. Você pode ajustar ou deixar em branco; uma nova pesquisa tenta atualizá-lo." : "Pesquise a proposição para tentar obter o despacho. Se não houver, preencha manualmente ou deixe em branco.";
+  elements.comissaoHelp.textContent = selected
+    ? proposition.atualComissao ? `Obtida da ${source}. Confira se este órgão representa a comissão atual e ajuste se necessário.` : "Comissão não localizada na consulta. Você pode informar manualmente ou deixar em branco."
+    : saved ? "Valor salvo no registro. Você pode ajustar ou deixar em branco; uma nova pesquisa tenta atualizá-lo." : "Pesquise a proposição para tentar obter a comissão atual. Se não houver, preencha manualmente ou deixe em branco.";
+}
+
 function lookupMessage(message, error = false, success = false) {
   elements.searchStatus.textContent = message;
   elements.searchStatus.dataset.error = String(error);
@@ -641,6 +752,7 @@ function resetLookup(record = null) {
   state.lookupWarnings = [];
   state.propositionToken = "";
   state.searchToken = "";
+  state.lookupPreviousProject = "";
   state.mustSearch = !record;
   elements.searchType.value = state.proposition?.siglaTipo || "";
   elements.searchNumber.value = state.proposition?.numero || "";
@@ -650,15 +762,18 @@ function resetLookup(record = null) {
   elements.form.elements.ementa.readOnly = !record || Boolean(state.proposition);
   elements.form.elements.ementa.required = Boolean(record && !state.proposition);
   showStatusPreview(state.proposition);
+  showNavigationHints(state.proposition);
   lookupMessage(record ? (state.proposition ? `Matéria vinculada. Encontrada em: ${sourceNames(state.proposition)}. Para atualizar os dados ou trocar o projeto, pesquise novamente.` : "Cadastro anterior à integração. Para trocar o projeto, faça uma busca.") : "A pesquisa é obrigatória para criar um registro. Use a numeração da Câmara ou do Senado.");
 }
 
 function invalidateLookup() {
   cancelLookup();
+  if (!state.lookupPreviousProject) state.lookupPreviousProject = elements.form.elements.projeto.value;
   state.mustSearch = true;
   state.proposition = null;
   state.lookupWarnings = [];
   showStatusPreview(null);
+  showNavigationHints(null);
   state.propositionToken = "";
   state.searchToken = "";
   elements.form.elements.projeto.value = "";
@@ -683,13 +798,25 @@ async function selectProposition(id, version = state.lookupVersion) {
     state.proposition = payload.proposition;
     state.propositionToken = payload.propositionToken;
     state.mustSearch = false;
+    const previousProject = state.lookupPreviousProject || elements.form.elements.projeto.value;
     elements.form.elements.projeto.value = payload.proposition.projeto;
     elements.form.elements.ementa.value = payload.proposition.ementa;
+    for (const field of ["despacho", "atualComissao"]) {
+      const officialValue = payload.proposition[field] || "";
+      if (officialValue || (previousProject && previousProject !== payload.proposition.projeto)) {
+        elements.form.elements[field].value = officialValue;
+      }
+    }
     elements.form.elements.ementa.readOnly = true;
     elements.form.elements.ementa.required = false;
     elements.propositionResults.hidden = true;
     showStatusPreview(payload.proposition);
-    lookupMessage(`Proposição encontrada com sucesso em: ${sourceNames(payload.proposition)}. ${payload.proposition.projeto} selecionado. Preencha a comissão e os demais campos.${payload.proposition.ementa ? "" : " A fonte não informou uma ementa."}${state.lookupWarnings.length ? ` Atenção: ${state.lookupWarnings.join(" ")}` : ""}`, false, true);
+    showNavigationHints(payload.proposition, true);
+    state.lookupPreviousProject = payload.proposition.projeto;
+    const missing = [["despacho", "despacho"], ["atualComissao", "comissão"]].filter(([field]) => !payload.proposition[field]).map(([, label]) => label);
+    const missingNote = missing.length === 2 ? " Despacho e comissão não foram localizados. Você pode preencher esses campos ou deixá-los em branco."
+      : missing.length === 1 ? ` ${missing[0] === "despacho" ? "O despacho não foi localizado" : "A comissão não foi localizada"}. Você pode preencher o campo ou deixá-lo em branco.` : "";
+    lookupMessage(`Proposição encontrada com sucesso em: ${sourceNames(payload.proposition)}. ${payload.proposition.projeto} selecionado. Confira os dados e complete os demais campos.${missingNote}${payload.proposition.navigationWarning ? ` Atenção: ${payload.proposition.navigationWarning}` : ""}${payload.proposition.ementa ? "" : " A fonte não informou uma ementa."}${state.lookupWarnings.length ? ` Atenção: ${state.lookupWarnings.join(" ")}` : ""}`, false, true);
   } catch (error) {
     if (version === state.lookupVersion) lookupMessage(error.message, true);
   } finally {
@@ -740,6 +867,8 @@ async function searchPropositions() {
 }
 
 function openNewRecord() {
+  state.pendingAttachments = [];
+  renderPendingAttachments();
   elements.form.reset();
   elements.form.elements.id.value = "";
   resetLookup();
@@ -763,6 +892,8 @@ function openEditRecord(id) {
   }
 
   clearFieldErrors();
+  state.pendingAttachments = [];
+  renderPendingAttachments();
   elements.attachmentInput.value = "";
   for (const [, field] of labels) elements.form.elements[field].value = record[field];
   elements.form.elements.id.value = record.id;
@@ -780,12 +911,11 @@ function recordFormSnapshot() {
   const fields = Object.fromEntries(
     labels.map(([, field]) => [field, String(elements.form.elements[field].value ?? "")])
   );
-  const file = elements.attachmentInput.files[0];
   return JSON.stringify({
     fields,
     search: [elements.searchType.value, elements.searchNumber.value, elements.searchYear.value],
     proposition: state.proposition,
-    attachment: file ? { name: file.name, size: file.size, lastModified: file.lastModified } : null
+    attachments: state.pendingAttachments.map(item => item.uploadKey)
   });
 }
 
@@ -836,7 +966,8 @@ function setSaving(saving) {
   elements.deleteRecord.disabled = saving;
   elements.cancelDialog.disabled = saving;
   elements.closeDialog.disabled = saving;
-  elements.removeAttachment.disabled = saving;
+  elements.attachmentInput.disabled = saving;
+  for (const button of elements.pendingAttachments.querySelectorAll("button")) button.disabled = saving;
   elements.saveLabel.hidden = saving;
   elements.saveLoading.hidden = !saving;
 }
@@ -857,8 +988,7 @@ async function saveRecord(event) {
   clearFieldErrors();
   if (!elements.form.reportValidity()) return;
 
-  const file = elements.attachmentInput.files[0];
-  const attachmentError = attachmentValidationMessage(file);
+  const attachmentError = state.pendingAttachments.map(item => attachmentValidationMessage(item.file)).find(Boolean);
   if (attachmentError) {
     showToast(attachmentError, "error");
     elements.attachmentInput.focus();
@@ -866,6 +996,7 @@ async function saveRecord(event) {
   }
 
   const id = elements.form.elements.id.value;
+  let savedRecord = null;
   setSaving(true);
   try {
     const result = await api(id ? `/api/records/${id}` : "/api/records", {
@@ -873,6 +1004,7 @@ async function saveRecord(event) {
       body: JSON.stringify(formPayload())
     });
     elements.form.elements.id.value = result.record.id;
+    savedRecord = result.record;
     state.propositionToken = "";
     state.proposition = result.record.proposition || result.record.camara;
     if (!id) {
@@ -881,34 +1013,26 @@ async function saveRecord(event) {
       elements.dialogTitle.textContent = "Editar registro";
       renderRecordHistory(result.record);
     }
-    if (file) await uploadAttachment(result.record.id, file);
+    while (state.pendingAttachments.length) {
+      const item = state.pendingAttachments[0];
+      savedRecord = await uploadAttachment(result.record.id, item.file, item.uploadKey);
+      state.pendingAttachments.shift();
+      renderExistingAttachment(savedRecord);
+      renderPendingAttachments();
+      setSaving(true);
+    }
     elements.dialog.close();
     state.recordFormBaseline = "";
     showToast(id ? "Registro atualizado com sucesso." : "Registro adicionado com sucesso.");
     await refreshData();
   } catch (error) {
     if (error.fields) showFieldErrors(error.fields);
-    else showToast(error.message, "error");
-  } finally {
-    setSaving(false);
-  }
-}
-
-async function removeAttachment() {
-  const id = elements.form.elements.id.value;
-  if (!id || elements.existingAttachment.hidden) return;
-  if (!window.confirm("Remover o arquivo anexado a este registro?")) return;
-
-  setSaving(true);
-  try {
-    const result = await api(`/api/records/${id}/attachment`, { method: "DELETE" });
-    elements.attachmentInput.value = "";
-    renderExistingAttachment(result.record);
-    renderRecordHistory(result.record);
-    showToast("Arquivo removido.");
-    await refreshData();
-  } catch (error) {
-    showToast(error.message, "error");
+    else showToast(savedRecord ? `O registro foi salvo. ${error.message} Os documentos pendentes continuam selecionados; clique em Salvar para tentar novamente.` : error.message, "error");
+    if (savedRecord) {
+      renderExistingAttachment(savedRecord);
+      renderRecordHistory(savedRecord);
+      await refreshData();
+    }
   } finally {
     setSaving(false);
   }
@@ -936,11 +1060,13 @@ async function deleteRecord() {
 
 function clearFilters() {
   elements.filterForm.reset();
+  updateClearFilterButton(elements.filterForm, elements.clearFilters);
   loadRecords({ showLoading: true });
 }
 
 function clearTotalsFilters() {
   elements.totalsFilterForm.reset();
+  updateClearFilterButton(elements.totalsFilterForm, elements.clearTotalsFilters);
   loadTotals();
 }
 
@@ -1060,11 +1186,17 @@ function setupEvents() {
     if (button && !state.lookupBusy) selectProposition(button.dataset.propositionId);
   });
   elements.dialog.addEventListener("close", cancelLookup);
-  let searchTimer;
-  elements.filterForm.addEventListener("change", () => loadRecords());
+  elements.filterForm.addEventListener("change", (event) => {
+    // The search input already reloads on input; its blur must not start a second request.
+    if (event.target !== elements.filterQ) loadRecords();
+  });
   elements.filterQ.addEventListener("input", () => {
-    window.clearTimeout(searchTimer);
-    searchTimer = window.setTimeout(() => loadRecords(), 260);
+    updateClearFilterButton(elements.filterForm, elements.clearFilters);
+    // Invalidate a previous response as soon as typing starts, including the debounce interval.
+    state.requestId++;
+    setRecordsLoading(true);
+    window.clearTimeout(state.recordsSearchTimer);
+    state.recordsSearchTimer = window.setTimeout(() => loadRecords(), 260);
   });
   elements.filterForm.addEventListener("submit", (event) => event.preventDefault());
   elements.totalsFilterForm.addEventListener("change", () => loadTotals());
@@ -1072,6 +1204,17 @@ function setupEvents() {
 
   elements.clearFilters.addEventListener("click", clearFilters);
   elements.clearTotalsFilters.addEventListener("click", clearTotalsFilters);
+  elements.pageSize.addEventListener("change", () => {
+    const size = Number(elements.pageSize.value);
+    if (state.recordsLoading || ![5, 10, 25].includes(size)) return;
+    state.recordsPageSize = size;
+    state.recordsPage = 1;
+    renderRecords();
+  });
+  elements.pagination.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-page-action]");
+    if (button && !button.disabled) changeRecordsPage(button.dataset.pageAction);
+  });
   elements.emptyNewButton.addEventListener("click", () => {
     if (elements.emptyNewButton.dataset.action === "clear") clearFilters();
     else openNewRecord();
@@ -1102,7 +1245,13 @@ function setupEvents() {
 
   elements.form.addEventListener("submit", saveRecord);
   elements.deleteRecord.addEventListener("click", deleteRecord);
-  elements.removeAttachment.addEventListener("click", removeAttachment);
+  elements.attachmentInput.addEventListener("change", queueAttachments);
+  elements.pendingAttachments.addEventListener("click", event => {
+    const button = event.target.closest("[data-remove-pending]");
+    if (!button || elements.attachmentInput.disabled) return;
+    state.pendingAttachments.splice(Number(button.dataset.removePending), 1);
+    renderPendingAttachments();
+  });
   elements.closeDialog.addEventListener("click", closeDialog);
   elements.cancelDialog.addEventListener("click", closeDialog);
   closeOnBackdropClick(elements.dialog, closeDialog);

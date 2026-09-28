@@ -23,11 +23,12 @@ function providers({ cameraFound = true, senateFound = true, cameraDown = false,
     camaraFetch: async (url) => {
       calls.push(url.href);
       if (cameraDown || (cameraDetailDown && !url.pathname.endsWith("/proposicoes"))) throw Error("offline");
-      return Response.json({ dados: url.pathname.endsWith("/proposicoes") ? cameraFound ? [c] : [] : c });
+      return Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? cameraFound ? [c] : [] : c });
     },
     senadoFetch: async (url) => {
       calls.push(url.href);
       if (senateDown || (senateDetailDown && !url.pathname.endsWith("/processo"))) throw Error("offline");
+      if (url.pathname.includes("/movimentacoes/")) return Response.json({ MovimentacaoMateria: { Materia: { Despachos: [] } } });
       return Response.json(url.pathname.endsWith("/processo") ? senateFound ? [{ ...s, ementa: s.conteudo.ementa, dataApresentacao: s.documento.dataApresentacao }] : [] : s);
     }
   };

@@ -13,6 +13,7 @@ const sampleRecord = {
   responsavel: "Beatriz Silva (Colaborador)",
   projeto: "PL 1234/2026",
   ementa: "Institui uma política nacional de apoio à educação municipal.",
+  despacho: "À Comissão de Educação.",
   atualComissao: "Comissão de Educação",
   haParecer: "Em andamento",
   sugestaoEmenda: "Sim",
@@ -33,7 +34,7 @@ before(async () => {
     camaraFetch: async (url) => {
       const number = Number(url.searchParams.get("numero") || url.pathname.split("/").at(-1));
       const proposition = { id: number, siglaTipo: "PL", numero: number, ano: 2026, ementa: sampleRecord.ementa, dataApresentacao: "2026-01-10T14:30", statusProposicao: { dataHora: "2026-02-20T15:45" } };
-      return Response.json({ dados: url.pathname.endsWith("/proposicoes") ? [proposition] : proposition });
+      return Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? [proposition] : proposition });
     }
   });
 });
@@ -80,6 +81,7 @@ test("valida, cria, filtra e edita registros", async () => {
   const created = (await createResponse.json()).record;
   assert.equal(createResponse.status, 201);
   assert.equal(created.projeto, sampleRecord.projeto);
+  assert.equal(created.despacho, sampleRecord.despacho);
   assert.ok(created.createdAt);
   assert.equal(created.editedAt, null);
 
@@ -172,10 +174,12 @@ test("totaliza e exporta a base em CSV compatível com Excel", async () => {
   assert.match(csv, /sep=;/);
   assert.match(csv, /PL 1234\/2026/);
   assert.match(csv, /Área Técnica/);
+  assert.match(csv, /"Despacho";"Atual comissão"/);
+  assert.match(csv, /À Comissão de Educação/);
   assert.notEqual(bytes.indexOf(Buffer.from([0xc1, 0x72, 0x65, 0x61])), -1);
 });
 
-test("anexa, substitui e disponibiliza documentos do registro", async () => {
+test("acrescenta documentos ao histórico, preserva downloads e evita duplicação em novas tentativas", async () => {
   const [record] = (await (await request("/api/records")).json()).records;
   const file = Buffer.from("%PDF-1.7\nconteudo de teste\n", "utf8");
   const uploadResponse = await request(`/api/records/${record.id}/attachment`, {
@@ -190,6 +194,10 @@ test("anexa, substitui e disponibiliza documentos do registro", async () => {
   assert.equal(uploadResponse.status, 201);
   assert.equal(uploaded.attachmentName, "parecer técnico.pdf");
   assert.equal(uploaded.attachmentSize, file.length);
+  assert.equal(uploaded.attachments.length, 1);
+  const original = uploaded.attachments[0];
+  assert(Number.isFinite(Date.parse(original.createdAt)));
+  assert.equal(original.storedName, undefined);
 
   const downloadResponse = await request(`/api/records/${record.id}/attachment`);
   const downloaded = Buffer.from(await downloadResponse.arrayBuffer());
@@ -197,6 +205,26 @@ test("anexa, substitui e disponibiliza documentos do registro", async () => {
   assert.equal(downloadResponse.headers.get("content-type"), "application/pdf");
   assert.match(downloadResponse.headers.get("content-disposition"), /parecer%20t%C3%A9cnico\.pdf/);
   assert.deepEqual(downloaded, file);
+
+  const secondFile = Buffer.from("%PDF-1.7\nsegunda versão\n");
+  const upload = () => request(`/api/records/${record.id}/attachments`, {
+    method: "POST", headers: { "X-File-Name": encodeURIComponent("parecer técnico.pdf"), "X-Upload-Id": "11111111-1111-4111-8111-111111111111" }, body: secondFile
+  });
+  const uploads = await Promise.all([upload(), upload()]);
+  assert(uploads.every(response => [200, 201].includes(response.status)));
+  const history = (await (await request(`/api/records/${record.id}`)).json()).record.attachments;
+  assert.equal(history.length, 2);
+  assert.notEqual(history[0].id, original.id);
+  assert.equal(history[1].createdAt, original.createdAt);
+  assert(Number.isFinite(Date.parse(history[0].createdAt)));
+  assert.deepEqual(Buffer.from(await (await request(`/api/records/${record.id}/attachments/${original.id}`)).arrayBuffer()), file);
+  assert.deepEqual(Buffer.from(await (await request(`/api/records/${record.id}/attachments/${history[0].id}`)).arrayBuffer()), secondFile);
+  assert.equal((await request(`/api/records/99999/attachments/${original.id}`)).status, 404);
+  assert.equal((await request(`/api/records/${record.id}/attachment`, { method: "DELETE" })).status, 405);
+
+  await app.close();
+  app = await startServer({ port: 0, databasePath: path.join(temporaryDirectory, "test.sqlite") });
+  assert.deepEqual((await (await request(`/api/records/${record.id}/attachments`)).json()).attachments, history);
 
   const invalidResponse = await request(`/api/records/${record.id}/attachment`, {
     method: "POST",

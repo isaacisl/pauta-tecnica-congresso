@@ -45,6 +45,7 @@ const exportColumns = Object.freeze([
   ["Responsável", "responsavel"],
   ["Projeto", "projeto"],
   ["Ementa", "ementa"],
+  ["Despacho", "despacho"],
   ["Atual comissão", "atualComissao"],
   ["Há parecer elaborado?", "haParecer"],
   ["Sugestão de emenda", "sugestaoEmenda"],
@@ -73,7 +74,7 @@ async function readJson(request) {
 
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > 64 * 1024) {
+    if (size > 128 * 1024) {
       const error = new Error("O conteúdo enviado é muito grande.");
       error.status = 413;
       throw error;
@@ -283,9 +284,10 @@ export async function startServer({
         return;
       }
 
-      const attachmentMatch = pathname.match(/^\/api\/records\/(\d+)\/attachment$/);
+      const attachmentMatch = pathname.match(/^\/api\/records\/(\d+)\/(?:attachment|attachments(?:\/(\d+))?)$/);
       if (attachmentMatch) {
         const id = Number(attachmentMatch[1]);
+        const attachmentId = attachmentMatch[2] ? Number(attachmentMatch[2]) : null;
         const record = database.get(id);
         if (!record) {
           sendError(response, 404, "Registro não encontrado.");
@@ -293,7 +295,11 @@ export async function startServer({
         }
 
         if (request.method === "GET") {
-          const attachment = database.getAttachment(id);
+          if (pathname.endsWith("/attachments")) {
+            send(response, 200, { attachments: record.attachments });
+            return;
+          }
+          const attachment = database.getAttachment(id, attachmentId);
           if (!attachment) {
             sendError(response, 404, "Este registro não possui arquivo.");
             return;
@@ -311,10 +317,18 @@ export async function startServer({
           return;
         }
 
-        if (request.method === "POST") {
+        if (request.method === "POST" && attachmentId === null) {
           const details = attachmentDetails(request);
+          const uploadKey = request.headers["x-upload-id"] || null;
+          if (uploadKey && (typeof uploadKey !== "string" || !/^[a-f0-9-]{36}$/i.test(uploadKey))) {
+            sendError(response, 400, "Identificador de envio inválido.");
+            return;
+          }
           const file = await readBinary(request);
-          const previousAttachment = database.getAttachment(id);
+          if (uploadKey && database.findAttachmentUpload(id, uploadKey)) {
+            send(response, 200, { record: database.get(id) });
+            return;
+          }
           const storedName = `${randomUUID()}${details.extension}`;
           const storedPath = path.join(uploadDirectory, storedName);
           await writeFile(storedPath, file, { flag: "wx" });
@@ -323,24 +337,24 @@ export async function startServer({
               name: details.name,
               storedName,
               mime: details.mime,
-              size: file.length
+              size: file.length,
+              uploadKey
             });
-            await removeStoredAttachment(uploadDirectory, previousAttachment?.storedName);
+            if (!updatedRecord) throw Object.assign(new Error("Registro não encontrado."), { status: 404 });
             send(response, 201, { record: updatedRecord });
           } catch (error) {
             await removeStoredAttachment(uploadDirectory, storedName);
+            if (uploadKey && database.findAttachmentUpload(id, uploadKey)) {
+              send(response, 200, { record: database.get(id) });
+              return;
+            }
             throw error;
           }
           return;
         }
 
-        if (request.method === "DELETE") {
-          const attachment = database.getAttachment(id);
-          const updatedRecord = database.clearAttachment(id);
-          await removeStoredAttachment(uploadDirectory, attachment?.storedName);
-          send(response, 200, { record: updatedRecord });
-          return;
-        }
+        sendError(response, 405, "Os documentos fazem parte do histórico. Envie um novo documento para acrescentá-lo ao registro.");
+        return;
       }
 
       const recordMatch = pathname.match(/^\/api\/records\/(\d+)$/);
@@ -367,10 +381,12 @@ export async function startServer({
         }
 
         if (request.method === "DELETE") {
-          const attachment = database.getAttachment(id);
+          const attachments = database.listAttachments(id);
           if (!database.remove(id)) sendError(response, 404, "Registro não encontrado.");
           else {
-            await removeStoredAttachment(uploadDirectory, attachment?.storedName);
+            for (const attachment of attachments) {
+              if (!database.hasStoredAttachment(attachment.storedName)) await removeStoredAttachment(uploadDirectory, attachment.storedName);
+            }
             send(response, 200, { deleted: true });
           }
           return;

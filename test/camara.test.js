@@ -16,6 +16,7 @@ test("consulta exige os três parâmetros, percorre páginas e valida a seleçã
   const calls = [];
   const client = createCamaraClient(async (url) => {
     calls.push(url);
+    if (url.pathname.endsWith("/tramitacoes")) return Response.json({ dados: [] });
     if (!url.pathname.endsWith("/proposicoes")) return Response.json({ dados: official });
     return Response.json(url.searchParams.get("pagina") === "1"
       ? { dados: [official], links: [{ rel: "next", href: "https://untrusted.invalid/" }] }
@@ -37,7 +38,7 @@ test("consulta exige os três parâmetros, percorre páginas e valida a seleçã
   await assert.rejects(() => client.select(9999, search.searchToken));
   assert.equal(calls.length, 2);
   const selected = await client.select(42, search.searchToken);
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   const input = client.recordInput({ ...fields, propositionToken: selected.propositionToken, camara: { id: 9999 } });
   assert.equal(input.projeto, "PL 1234/2024");
   assert.equal(input.ementa, "Ementa oficial");
@@ -45,7 +46,7 @@ test("consulta exige os três parâmetros, percorre páginas e valida a seleçã
   assert.equal(input.camara.dataApresentacao, "2024-04-12T15:20");
   assert.equal(input.camara.statusDataHora, "2024-04-19T00:00");
   assert.equal(input.atualComissao, fields.atualComissao);
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.throws(() => client.recordInput(fields));
   assert.throws(() => client.recordInput({ ...fields, propositionToken: `${selected.propositionToken}tampered` }));
 });
@@ -57,7 +58,7 @@ test("trata pesquisa vazia, indisponibilidade, respostas inválidas e datas ause
     const client = createCamaraClient(reply);
     await assert.rejects(() => client.search(query()), (error) => error.status === 503);
   }
-  const client = createCamaraClient(async (url) => Response.json({ dados: url.pathname.endsWith("/proposicoes") ? [official] : { ...official, dataApresentacao: null, statusProposicao: null, ementa: null } }));
+  const client = createCamaraClient(async (url) => Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? [official] : { ...official, dataApresentacao: null, statusProposicao: null, ementa: null } }));
   const search = await client.search(query());
   const selected = await client.select(42, search.searchToken);
   assert.equal(selected.proposition.dataApresentacao, null);
@@ -71,7 +72,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
   let calls = 0;
   const camaraFetch = async (url) => {
     calls++;
-    return Response.json({ dados: url.pathname.endsWith("/proposicoes") ? [official] : official });
+    return Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? [official] : official });
   };
   let app = await startServer({ port: 0, databasePath, camaraFetch, senadoFetch: async () => Response.json([]) });
   const request = (endpoint, body, method = "POST") => fetch(`${app.url}${endpoint}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -88,7 +89,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     assert.equal(saved.camara.id, 42);
     assert.equal(saved.projeto, "PL 1234/2024");
     assert.equal(saved.atualComissao, fields.atualComissao);
-    assert.equal(calls, 2);
+    assert.equal(calls, 3);
     await app.close();
     app = await startServer({ port: 0, databasePath, camaraFetch, senadoFetch: async () => Response.json([]) });
     const updatedResponse = await request(`/api/records/${saved.id}`, { ...saved, haParecer: "Não", ementa: "Tentativa de trocar", camara: { id: 123 } }, "PUT");
@@ -97,7 +98,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     assert.deepEqual(updated.camara, saved.camara);
     assert.equal(updated.ementa, official.ementa);
     assert.equal(updated.haParecer, "Não");
-    assert.equal(calls, 2);
+    assert.equal(calls, 3);
     assert.equal((await request(`/api/records/${saved.id}`, { ...saved, projeto: "PL 999/2024" }, "PUT")).status, 422);
     assert.equal((await request("/api/records", { ...fields, propositionToken: selection.propositionToken })).status, 422);
   } finally {
@@ -115,11 +116,13 @@ test("migração preserva registros antigos e seus metadados de anexos", async (
   db.close();
   const sqlite = new DatabaseSync(file);
   sqlite.exec("ALTER TABLE records DROP COLUMN camara_json");
+  sqlite.exec("ALTER TABLE records DROP COLUMN despacho");
   sqlite.close();
   try {
     db = createDatabase(file);
     const migrated = db.get(legacy.id);
     assert.equal(migrated.projeto, fields.projeto);
+    assert.equal(migrated.despacho, "");
     assert.equal(migrated.attachmentName, "documento.pdf");
     assert.equal(migrated.camara, null);
     const client = createCamaraClient(() => { throw new Error("Não deve consultar"); });

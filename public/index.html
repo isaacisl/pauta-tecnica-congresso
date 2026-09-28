@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20260921-2" />
+    <link rel="stylesheet" href="/styles.css?v=20260924-7" />
   </head>
   <body>
     <header class="app-header">
@@ -70,7 +70,7 @@
             <span class="summary-icon summary-icon-green" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
             </span>
-            <span><strong id="filtered-records">0</strong><small>registros exibidos</small></span>
+            <span><strong id="filtered-records">0</strong><small>registros encontrados</small></span>
           </div>
         </div>
 
@@ -80,7 +80,7 @@
               <span class="section-kicker">Filtros</span>
               <h2 id="filter-title">Encontre um registro</h2>
             </div>
-            <button id="clear-filters" class="text-button" type="button">Limpar filtros</button>
+            <button id="clear-filters" class="filter-clear-button" type="button" disabled>Limpar filtros</button>
           </div>
           <form id="filter-form" class="filter-grid">
             <label class="field search-field">
@@ -151,6 +151,23 @@
             <p id="empty-description">Adicione o primeiro projeto prioritário para começar.</p>
             <button id="empty-new-button" class="button button-primary" type="button">Adicionar registro</button>
           </div>
+          <div id="records-pagination" class="table-pagination" hidden>
+            <label class="page-size-label" for="records-page-size">Itens por página
+              <select id="records-page-size" aria-controls="records-body">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+              </select>
+            </label>
+            <span id="records-page-range" class="page-range" role="status" aria-live="polite" aria-atomic="true"></span>
+            <nav class="page-navigation" aria-label="Paginação dos registros">
+              <button class="page-control" type="button" data-page-action="first" aria-label="Primeira página" title="Primeira página" aria-controls="records-body" disabled>«</button>
+              <button class="page-control" type="button" data-page-action="previous" aria-label="Página anterior" title="Página anterior" aria-controls="records-body" disabled>‹</button>
+              <span id="records-page-position" class="page-position">Página 0 de 0</span>
+              <button class="page-control" type="button" data-page-action="next" aria-label="Próxima página" title="Próxima página" aria-controls="records-body" disabled>›</button>
+              <button class="page-control" type="button" data-page-action="last" aria-label="Última página" title="Última página" aria-controls="records-body" disabled>»</button>
+            </nav>
+          </div>
         </section>
       </section>
 
@@ -183,7 +200,7 @@
                 <span class="section-kicker">Filtros da totalização</span>
                 <h2 id="totals-filter-title">Refine os indicadores</h2>
               </div>
-              <button id="clear-totals-filters" class="text-button" type="button">Limpar filtros</button>
+              <button id="clear-totals-filters" class="filter-clear-button" type="button" disabled>Limpar filtros</button>
             </div>
             <form id="totals-filter-form" class="total-filter-grid">
               <label class="field">
@@ -289,7 +306,7 @@
           <div class="form-grid">
             <section class="proposition-search form-span-2" aria-labelledby="proposition-search-title">
               <h3 id="proposition-search-title">Buscar proposição na Câmara e no Senado</h3>
-              <p>Informe tipo, número e ano. A busca aceita proposições da Câmara ou do Senado e preenche projeto, ementa e situação com a indicação da fonte. Comissão e demais campos são manuais.</p>
+              <p>Informe tipo, número e ano. A busca preenche projeto, ementa, despacho e comissão quando disponíveis. Confira os dados: despacho e comissão podem ser ajustados ou deixados em branco.</p>
               <div class="proposition-search-fields">
                 <label class="field"><span>Tipo</span><select id="search-type"><option value="">Selecione o tipo</option></select></label>
                 <label class="field"><span>Número</span><input id="search-number" type="text" inputmode="numeric" maxlength="9" placeholder="Ex.: 1234" /></label>
@@ -321,36 +338,40 @@
               <small class="field-error" data-error-for="ementa"></small>
             </label>
             <label class="field form-span-2">
-              <span>Atual comissão <b aria-hidden="true">*</b></span>
-              <input id="field-comissao" name="atualComissao" type="text" maxlength="300" placeholder="Informe a comissão atual" required />
+              <span>Despacho <em>Opcional</em></span>
+              <textarea id="field-despacho" name="despacho" rows="3" maxlength="8000" placeholder="Preenchido pela busca quando houver despacho oficial; você também pode informar manualmente"></textarea>
+              <small id="despacho-help" class="field-help">Pesquise a proposição para tentar obter o despacho. Se não houver, preencha manualmente ou deixe em branco.</small>
+              <small class="field-error" data-error-for="despacho"></small>
+            </label>
+            <label class="field form-span-2">
+              <span>Atual comissão <em>Opcional</em></span>
+              <input id="field-comissao" name="atualComissao" type="text" maxlength="300" placeholder="Preenchida pela busca quando disponível; também pode ser informada manualmente" />
+              <small id="comissao-help" class="field-help">Pesquise a proposição para tentar obter a comissão atual. Se não houver, preencha manualmente ou deixe em branco.</small>
               <small class="field-error" data-error-for="atualComissao"></small>
             </label>
-            <label class="field form-span-2 attachment-field">
-              <span>Arquivo <em>Opcional</em></span>
-              <input
-                id="field-attachment"
-                name="attachment"
-                type="file"
-                accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
-              />
-              <small class="field-help">PDF, Word, Excel, PowerPoint, texto ou imagem · máximo de 20 MB</small>
-            </label>
-            <div id="existing-attachment" class="existing-attachment form-span-2" hidden>
-              <span class="attachment-file-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M10 13h5M10 17h4" /></svg>
-              </span>
-              <span class="attachment-file-info">
-                <strong id="existing-attachment-name"></strong>
-                <small id="existing-attachment-size"></small>
-              </span>
-              <a id="download-attachment" class="text-button attachment-link" href="#">Baixar</a>
-              <button id="remove-attachment" class="text-button attachment-remove" type="button">Remover</button>
-            </div>
-            <label class="field">
+            <label class="field form-span-2">
               <span>Há parecer elaborado? <b aria-hidden="true">*</b></span>
               <select id="field-parecer" name="haParecer" required><option value="">Selecione</option></select>
               <small class="field-error" data-error-for="haParecer"></small>
             </label>
+            <section class="document-section form-span-2" aria-label="Documentos do registro">
+            <label class="field attachment-field">
+              <span>Adicionar documentos <em>Opcional</em></span>
+              <input
+                id="field-attachment"
+                name="attachment"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
+              />
+              <small class="field-help">Selecione um ou mais arquivos. Máximo de 20 MB por arquivo. Serão adicionados ao histórico ao salvar o registro.</small>
+            </label>
+            <ul id="pending-attachments" class="document-list" aria-label="Documentos aguardando envio" hidden></ul>
+            <div id="existing-attachment" hidden>
+              <h3 class="document-history-title">Histórico de documentos</h3>
+              <div id="attachment-history"></div>
+            </div>
+            </section>
             <label class="field">
               <span>Sugestão de emenda <b aria-hidden="true">*</b></span>
               <select id="field-emenda" name="sugestaoEmenda" required><option value="">Selecione</option></select>
@@ -461,6 +482,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260921-2"></script>
+    <script type="module" src="/app.js?v=20260924-7"></script>
   </body>
 </html>

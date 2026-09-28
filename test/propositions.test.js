@@ -22,6 +22,7 @@ function setup({ collision = false, noRelation = false, senateDown = false, came
   const other = { ...camara, id: 9000001, numero: 3361, ano: 2025 };
   const camaraFetch = async (url) => {
     calls.push(url.href);
+    if (url.pathname.endsWith("/tramitacoes")) return Response.json({ dados: [] });
     if (!url.pathname.endsWith("/proposicoes")) {
       assert.ok([camara.id, other.id].includes(Number(url.pathname.split("/").at(-1))), "Senate process IDs must never be used as Câmara IDs");
       return Response.json({ dados: url.pathname.endsWith(`/${camara.id}`) ? camara : other });
@@ -32,6 +33,7 @@ function setup({ collision = false, noRelation = false, senateDown = false, came
   const senadoFetch = async (url) => {
     calls.push(url.href);
     if (senateDown) throw new Error("offline");
+    if (url.pathname.includes("/movimentacoes/")) return Response.json({ MovimentacaoMateria: { Materia: { Despachos: [] } } });
     if (url.pathname.endsWith("/processo")) return Response.json(url.searchParams.get("numero") === "3361" ? [senate] : []);
     assert.ok(url.pathname.endsWith("/8862684"));
     return Response.json(noRelation ? { ...senate, identificacaoProcessoInicial: null, idProcessoCasaInicial: null, outrosNumeros: [] } : senate);
@@ -52,7 +54,7 @@ test("PL 3361/2025 resolve para PL 7108/2017; IDs ficam separados e cache persis
     assert.deepEqual(found.results[0].identifications, [{ house: "CD", name: "PL 7108/2017" }, { house: "SF", name: "PL 3361/2025" }]);
     await assert.rejects(() => service.select(8862684, found.searchToken));
     const selected = await service.select(camara.id, found.searchToken);
-    assert.equal(calls.length, 5);
+    assert.equal(calls.length, 7);
     assert.equal(selected.proposition.id, camara.id);
     assert.equal(selected.proposition.identifiers.find((identity) => identity.externalId === 8862684).codigoMateria, 169542);
     assert.equal(database.getMatterBySenadoId(8862683).id, database.getMatterByCamaraId(camara.id).id);
@@ -66,7 +68,7 @@ test("PL 3361/2025 resolve para PL 7108/2017; IDs ficam separados e cache persis
     const cached = await restarted.search(query());
     assert.equal(cached.cached, true);
     const reselected = await restarted.select(camara.id, cached.searchToken);
-    assert.equal(calls.length, 5, "No API calls on repeat search and selection");
+    assert.equal(calls.length, 7, "No API calls on repeat search and selection");
     assert.equal(reselected.proposition.matterId, saved.matterId);
     const reverse = await restarted.search(query(7108, 2017));
     const reverseSelection = await restarted.select(camara.id, reverse.searchToken);
@@ -184,6 +186,9 @@ test("migração vincula registros com ID oficial preservando duplicidades hist�
     assert.equal(records.length, 2);
     assert.equal(records[0].matterId, records[1].matterId);
     assert.equal(records[0].attachmentName, "arquivo.pdf");
+    assert.equal(records[0].attachments.length, 1);
+    assert.equal(records[1].attachments.length, 1);
+    assert.equal(records[0].attachments[0].createdAt, null);
     assert.equal(records[0].createdAt, "2026-09-16T00:00:00Z");
     assert.equal(database.getAttachment(records[0].id).storedName, "stored.pdf");
     assert.equal(database.update(records[0].id, { ...records[0], atualComissao: "Outra comissão" }).atualComissao, "Outra comissão");
