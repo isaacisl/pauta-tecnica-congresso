@@ -1367,9 +1367,42 @@ td:nth-child(2) .cell-truncate {
 
 .details-layout {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   max-height: min(880px, calc(100dvh - 30px));
 }
+
+.record-tabs,
+.form-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.record-tab {
+  min-width: 0;
+  padding: 14px 16px 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.record-tab:hover { color: var(--brand); }
+.record-tab.is-current { border-bottom-color: var(--brand); color: var(--brand); }
+.record-tab:focus-visible,
+.form-step:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
+
+.details-body { padding-top: 18px; }
+.detail-section + .detail-section { margin-top: 22px; }
+.detail-section-heading { margin-bottom: 11px; }
+.detail-section-heading h3 { margin: 0; color: var(--ink); font-size: 15px; }
+.detail-section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
 
 .details-grid {
   display: grid;
@@ -1521,8 +1554,51 @@ td:nth-child(2) .cell-truncate {
 .record-dialog form {
   display: grid;
   max-height: min(880px, calc(100vh - 30px));
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
+
+.form-steps {
+  gap: 0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: var(--surface-soft);
+}
+
+.form-step {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 3px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.form-step.is-current { color: var(--brand); }
+.form-step:disabled { cursor: wait; opacity: 0.65; }
+.step-number {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+}
+.form-step.is-current .step-number { border-color: var(--brand); background: var(--brand); color: #fff; }
+.step-connector { width: 34px; height: 1px; margin: 0 12px; background: var(--line-strong); }
+
+.stage-heading { margin-bottom: 20px; }
+.stage-heading h3 { margin: 5px 0 4px; font-size: 18px; }
+.stage-heading p { margin: 0; color: var(--muted); font-size: 12px; }
 
 .dialog-header {
   display: flex;
@@ -1950,6 +2026,13 @@ td:nth-child(2) .cell-truncate {
     padding-right: 18px;
     padding-left: 18px;
   }
+
+  .record-tabs,
+  .form-steps { padding-right: 18px; padding-left: 18px; }
+  .record-tab { flex: 1; padding-right: 6px; padding-left: 6px; text-align: center; }
+  .step-connector { width: 16px; margin: 0 7px; }
+  .form-step { font-size: 11px; }
+  .form-step .step-number { width: 24px; height: 24px; }
 
   .form-grid {
     grid-template-columns: 1fr;

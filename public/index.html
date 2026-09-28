@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20260924-7" />
+    <link rel="stylesheet" href="/styles.css?v=20260928-2" />
   </head>
   <body>
     <header class="app-header">
@@ -283,7 +283,14 @@
           <div><p class="eyebrow">Consulta do registro</p><h2 id="details-title">Detalhes do registro</h2></div>
           <button id="close-details" class="icon-button" type="button" aria-label="Fechar detalhes">✕</button>
         </div>
-        <div class="dialog-body"><dl id="details-content" class="details-grid"></dl></div>
+        <div class="record-tabs" role="tablist" aria-label="Detalhes do registro">
+          <button id="details-tab-project" class="record-tab" type="button" role="tab" aria-controls="details-panel-project" aria-selected="true" data-details-tab="project">Projeto</button>
+          <button id="details-tab-followup" class="record-tab" type="button" role="tab" aria-controls="details-panel-followup" aria-selected="false" data-details-tab="followup" tabindex="-1">Acompanhamento</button>
+        </div>
+        <div class="dialog-body details-body">
+          <div id="details-panel-project" role="tabpanel" aria-labelledby="details-tab-project"></div>
+          <div id="details-panel-followup" role="tabpanel" aria-labelledby="details-tab-followup" hidden></div>
+        </div>
         <div class="dialog-footer"><button id="details-edit" class="button button-primary" type="button">Editar registro</button></div>
       </div>
     </dialog>
@@ -301,8 +308,16 @@
           </button>
         </div>
 
+        <div class="form-steps" aria-label="Etapas do cadastro">
+          <button id="step-project" class="form-step is-current" type="button" data-form-step="project" aria-current="step"><span class="step-number">1</span><span>Projeto</span></button>
+          <span class="step-connector" aria-hidden="true"></span>
+          <button id="step-followup" class="form-step" type="button" data-form-step="followup"><span class="step-number">2</span><span>Área e acompanhamento</span></button>
+        </div>
+
         <div class="dialog-body">
           <input id="record-id" name="id" type="hidden" />
+          <section id="form-stage-project" class="form-stage" aria-labelledby="form-project-title">
+            <div class="stage-heading"><span class="section-kicker">Etapa 1 de 2</span><h3 id="form-project-title">Dados do projeto</h3><p>Localize a matéria e confira as informações de tramitação.</p></div>
           <div class="form-grid">
             <section class="proposition-search form-span-2" aria-labelledby="proposition-search-title">
               <h3 id="proposition-search-title">Buscar proposição na Câmara e no Senado</h3>
@@ -317,16 +332,6 @@
               <div id="proposition-status-preview" hidden></div>
               <div id="proposition-results" class="proposition-results" hidden></div>
             </section>
-            <label class="field">
-              <span>Área técnica <b aria-hidden="true">*</b></span>
-              <select id="field-area" name="areaTecnica" required><option value="">Selecione a área</option></select>
-              <small class="field-error" data-error-for="areaTecnica"></small>
-            </label>
-            <label class="field">
-              <span>Responsável <b aria-hidden="true">*</b></span>
-              <select id="field-responsavel" name="responsavel" required><option value="">Selecione o responsável</option></select>
-              <small class="field-error" data-error-for="responsavel"></small>
-            </label>
             <label class="field form-span-2">
               <span>Projeto <b aria-hidden="true">*</b></span>
               <input id="field-projeto" name="projeto" type="text" maxlength="300" placeholder="Preenchido pela busca legislativa" readonly required />
@@ -348,6 +353,21 @@
               <input id="field-comissao" name="atualComissao" type="text" maxlength="300" placeholder="Preenchida pela busca quando disponível; também pode ser informada manualmente" />
               <small id="comissao-help" class="field-help">Pesquise a proposição para tentar obter a comissão atual. Se não houver, preencha manualmente ou deixe em branco.</small>
               <small class="field-error" data-error-for="atualComissao"></small>
+            </label>
+          </div>
+          </section>
+          <section id="form-stage-followup" class="form-stage" aria-labelledby="form-followup-title" hidden>
+            <div class="stage-heading"><span class="section-kicker">Etapa 2 de 2</span><h3 id="form-followup-title">Área e acompanhamento</h3><p>Defina o responsável, registre a análise e acompanhe os documentos.</p></div>
+          <div class="form-grid">
+            <label class="field">
+              <span>Área técnica <b aria-hidden="true">*</b></span>
+              <select id="field-area" name="areaTecnica" required><option value="">Selecione a área</option></select>
+              <small class="field-error" data-error-for="areaTecnica"></small>
+            </label>
+            <label class="field">
+              <span>Responsável <b aria-hidden="true">*</b></span>
+              <select id="field-responsavel" name="responsavel" required><option value="">Selecione o responsável</option></select>
+              <small class="field-error" data-error-for="responsavel"></small>
             </label>
             <label class="field form-span-2">
               <span>Há parecer elaborado? <b aria-hidden="true">*</b></span>
@@ -404,13 +424,16 @@
               </dl>
             </section>
           </div>
+          </section>
         </div>
 
         <div class="dialog-footer">
           <button id="delete-record" class="button button-danger" type="button" hidden>Excluir registro</button>
           <span class="footer-spacer"></span>
-          <button id="cancel-dialog" class="button button-ghost" type="button">Cancelar</button>
-          <button id="save-record" class="button button-primary" type="submit">
+          <button id="cancel-dialog" class="button button-ghost" type="button">Fechar</button>
+          <button id="previous-stage" class="button button-ghost" type="button" hidden>Voltar ao projeto</button>
+          <button id="next-stage" class="button button-primary" type="button">Continuar para acompanhamento</button>
+          <button id="save-record" class="button button-primary" type="submit" hidden>
             <span class="button-label">Salvar registro</span>
             <span class="button-loading" hidden><span class="spinner spinner-small"></span> Salvando…</span>
           </button>
@@ -482,6 +505,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260924-7"></script>
+    <script type="module" src="/app.js?v=20260928-2"></script>
   </body>
 </html>

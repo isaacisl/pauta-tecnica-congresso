@@ -15,6 +15,8 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 ## Recursos
 
 - cadastro, edição e exclusão de registros;
+- cadastro em duas etapas: primeiro a busca e os dados do projeto; depois a área, o responsável, a análise e os documentos;
+- consulta do registro em abas de projeto e acompanhamento, com edição aberta a partir da aba consultada;
 - busca obrigatória de novas proposições por tipo, número e ano na Câmara e no Senado, com equivalências oficiais e projeto/ementa automáticos;
 - despacho e comissão atual sugeridos automaticamente quando disponíveis, sempre editáveis e opcionais;
 - listas de áreas, responsáveis e status baseadas na aba `Parâmetros` da planilha original;

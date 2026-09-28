@@ -22,7 +22,8 @@ const state = {
   mustSearch: false,
   lookupVersion: 0,
   lookupController: null,
-  lookupBusy: false
+  lookupBusy: false,
+  formStep: "project"
 };
 
 const elements = {
@@ -69,6 +70,13 @@ const elements = {
   positionTotals: document.querySelector("#position-totals"),
   dialog: document.querySelector("#record-dialog"),
   form: document.querySelector("#record-form"),
+  formBody: document.querySelector("#record-form > .dialog-body"),
+  formProject: document.querySelector("#form-stage-project"),
+  formFollowup: document.querySelector("#form-stage-followup"),
+  stepProject: document.querySelector("#step-project"),
+  stepFollowup: document.querySelector("#step-followup"),
+  previousStage: document.querySelector("#previous-stage"),
+  nextStage: document.querySelector("#next-stage"),
   searchType: document.querySelector("#search-type"),
   searchNumber: document.querySelector("#search-number"),
   searchYear: document.querySelector("#search-year"),
@@ -282,6 +290,30 @@ function officialLinks(record) {
   ];
 }
 
+function detailItem(label, value, { wide = false, html = false } = {}) {
+  return `<div class="${wide ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${html ? value : escapeHtml(value || "Não informado")}</dd></div>`;
+}
+
+function detailSection(title, content, subtitle = "") {
+  return `<section class="detail-section"><div class="detail-section-heading"><h3>${escapeHtml(title)}</h3>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}</div><dl class="details-grid">${content}</dl></section>`;
+}
+
+function setDetailsTab(tab, focus = false) {
+  const dialog = document.querySelector("#details-dialog");
+  for (const name of ["project", "followup"]) {
+    const selected = name === tab;
+    const button = dialog.querySelector(`#details-tab-${name}`);
+    dialog.querySelector(`#details-panel-${name}`).hidden = !selected;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    if (selected) button.classList.add("is-current");
+    else button.classList.remove("is-current");
+    if (selected && focus) button.focus();
+  }
+  dialog.querySelector("#details-edit").textContent = tab === "project" ? "Editar projeto" : "Editar acompanhamento";
+  dialog.querySelector(".details-body").scrollTop = 0;
+}
+
 function openRecordDetails(id) {
   const record = state.records.find((item) => item.id === id);
   if (!record) return;
@@ -289,21 +321,35 @@ function openRecordDetails(id) {
   const links = officialLinks(record);
   const dialog = document.querySelector("#details-dialog");
   dialog.dataset.recordId = String(id);
-  const fields = [...labels, ["Data de inclusão", "createdAt"]];
-  if (record.editedAt) fields.push(["Última edição", "editedAt"]);
-  document.querySelector("#details-content").innerHTML = fields.map(([label, field]) => {
-    const value = field.endsWith("At") ? formatDateTime(record[field]) : record[field];
-    const content = ["haParecer", "sugestaoEmenda", "posicionamento"].includes(field) && value ? statusChip(value) : escapeHtml(value || "Não informado");
-    return `<div class="${["projeto", "ementa", "despacho"].includes(field) ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${content}</dd></div>`;
-  }).join("") + `
-    <div><dt>Data de apresentação (início)</dt><dd>${escapeHtml(formatCamaraDate(proposition?.dataApresentacao))}${proposition ? ` · ${escapeHtml(sourceLabel(proposition.source))}` : ""}</dd></div>
-    <div><dt>Data e hora da situação</dt><dd>${proposition?.statuses?.length > 1 && !proposition.latestStatus ? "Confira abaixo as datas de cada fonte." : escapeHtml(formatCamaraDate(proposition?.latestStatus?.dataHora || (!proposition?.statuses ? proposition?.statusDataHora : null)))}</dd></div>
-    ${proposition ? `<div class="details-wide"><dt>Encontrada em: ${escapeHtml(sourceNames(proposition))}</dt><dd>Projeto e ementa: ${escapeHtml(sourceLabel(proposition.source))} · ID ${escapeHtml(proposition.id)}. Consulta de ${escapeHtml(formatDateTime(proposition.consultadoEm))}.</dd></div>` : ""}
-    ${proposition?.statuses ? `<div class="details-wide"><dt>Situação legislativa na consulta</dt><dd>${statusDetails(proposition)}</dd></div>` : `<div class="details-wide"><dt>Situação legislativa</dt><dd>Registro anterior à coleta da situação. Edite e pesquise novamente para obter essa informação.</dd></div>`}
-    ${links.length ? `<div class="details-wide"><dt>Páginas oficiais da matéria</dt><dd class="official-links">${links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("")}</dd></div>` : ""}
-    ${record.matter ? `<div class="details-wide"><dt>Identificações da mesma matéria</dt><dd>${escapeHtml(matterIdentifications(record.matter.identifiers))}</dd></div>` : ""}
-    ${(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => `<div class="details-wide"><dt>Dados e relações oficiais do Senado</dt><dd><a href="https://legis.senado.leg.br/dadosabertos/processo/${Number(identifier.evidence.id)}" target="_blank" rel="noopener noreferrer">Consultar processo no Senado</a> · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}</dd></div>`).join("")}
-  ` + (record.attachments?.length ? `<div class="details-wide"><dt>Histórico de documentos (${record.attachments.length})</dt><dd>${attachmentHistoryMarkup(record)}</dd></div>` : "");
+  const officialLinkMarkup = links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("");
+  document.querySelector("#details-panel-project").innerHTML =
+    detailSection("Identificação", [
+      detailItem("Projeto", record.projeto, { wide: true }),
+      detailItem("Ementa", record.ementa, { wide: true }),
+      ...(links.length ? [detailItem("Páginas oficiais da matéria", `<span class="official-links">${officialLinkMarkup}</span>`, { wide: true, html: true })] : [])
+    ].join("")) +
+    detailSection("Tramitação", [
+      detailItem("Despacho", record.despacho, { wide: true }),
+      detailItem("Atual comissão", record.atualComissao),
+      detailItem("Data de apresentação (início)", `${formatCamaraDate(proposition?.dataApresentacao)}${proposition ? ` · ${sourceLabel(proposition.source)}` : ""}`),
+      detailItem("Data e hora da situação", proposition?.statuses?.length > 1 && !proposition.latestStatus ? "Confira abaixo as datas de cada fonte." : formatCamaraDate(proposition?.latestStatus?.dataHora || (!proposition?.statuses ? proposition?.statusDataHora : null))),
+      detailItem("Situação legislativa na consulta", proposition?.statuses ? statusDetails(proposition) : "Registro anterior à coleta da situação. Edite e pesquise novamente para obter essa informação.", { wide: true, html: Boolean(proposition?.statuses) })
+    ].join("")) +
+    (proposition || record.matter ? detailSection("Origem e vínculos", [
+      ...(proposition ? [detailItem(`Encontrada em: ${sourceNames(proposition)}`, `Projeto e ementa: ${sourceLabel(proposition.source)} · ID ${proposition.id}. Consulta de ${formatDateTime(proposition.consultadoEm)}.`, { wide: true })] : []),
+      ...(record.matter ? [detailItem("Identificações da mesma matéria", matterIdentifications(record.matter.identifiers), { wide: true })] : []),
+      ...(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => detailItem("Dados e relações oficiais do Senado", `<a href="https://legis.senado.leg.br/dadosabertos/processo/${Number(identifier.evidence.id)}" target="_blank" rel="noopener noreferrer">Consultar processo no Senado</a> · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}`, { wide: true, html: true }))
+    ].join("")) : "");
+  document.querySelector("#details-panel-followup").innerHTML =
+    detailSection("Equipe responsável", detailItem("Área técnica", record.areaTecnica) + detailItem("Responsável", record.responsavel)) +
+    detailSection("Análise da área", [
+      detailItem("Parecer elaborado", statusChip(record.haParecer), { html: true }),
+      detailItem("Sugestão de emenda", statusChip(record.sugestaoEmenda), { html: true }),
+      detailItem("Posicionamento", statusChip(record.posicionamento), { wide: true, html: true })
+    ].join("")) +
+    detailSection("Documentos", record.attachments?.length ? detailItem(`Histórico de documentos (${record.attachments.length})`, attachmentHistoryMarkup(record), { wide: true, html: true }) : detailItem("Histórico de documentos", "Nenhum documento adicionado.", { wide: true })) +
+    detailSection("Histórico do acompanhamento", detailItem("Data de inclusão", formatDateTime(record.createdAt)) + (record.editedAt ? detailItem("Última edição", formatDateTime(record.editedAt)) : ""));
+  setDetailsTab("project");
   dialog.showModal();
 }
 
@@ -367,18 +413,10 @@ function renderRecords() {
       cells.push(`
         <td data-label="Ações">
           <span class="row-actions">
-            <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Ver detalhes de ${escapeHtml(record.projeto)}" title="Ver detalhes do registro">
+            <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Abrir ${escapeHtml(record.projeto)}" title="Abrir projeto e acompanhamento">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
             ${preferredLink ? `<a class="row-action official-action" href="${preferredLink.href}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${escapeHtml(record.projeto)} no site oficial: ${escapeHtml(preferredLink.label)}" title="Abrir no site oficial: ${escapeHtml(preferredLink.label)}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>` : ""}
-            ${record.attachmentName ? `
-              <button type="button" class="row-action attachment-action" data-details-id="${record.id}" aria-label="Ver documentos de ${escapeHtml(record.projeto)}" title="Ver histórico de documentos (${record.attachments?.length || 1})">
-                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 12.5 14.5 6a3 3 0 0 1 4.2 4.2l-8.2 8.2a5 5 0 0 1-7.1-7.1l8-8" /></svg>
-              </button>
-            ` : ""}
-            <button class="row-action" type="button" data-edit-id="${record.id}" aria-label="Editar ${escapeHtml(record.projeto)}" title="Editar registro">
-              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" /></svg>
-            </button>
           </span>
         </td>
       `);
@@ -576,7 +614,43 @@ function showFieldErrors(fields = {}) {
     }
     if (errorElement) errorElement.textContent = message;
   }
+  if (firstField?.closest("#form-stage-project")) showFormStep("project");
+  else if (firstField?.closest("#form-stage-followup")) showFormStep("followup");
   firstField?.focus();
+}
+
+function showFormStep(step, focus = false) {
+  state.formStep = step;
+  elements.formProject.hidden = step !== "project";
+  elements.formFollowup.hidden = step !== "followup";
+  elements.previousStage.hidden = step === "project";
+  elements.nextStage.hidden = step !== "project";
+  elements.saveRecord.hidden = step !== "followup";
+  for (const [name, button] of [["project", elements.stepProject], ["followup", elements.stepFollowup]]) {
+    const selected = name === step;
+    button.classList.toggle("is-current", selected);
+    if (selected) button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+  }
+  elements.formBody.scrollTop = 0;
+  if (focus) (step === "project" ? elements.searchType : elements.form.elements.areaTecnica).focus();
+}
+
+function advanceToFollowup() {
+  if (state.lookupBusy || !elements.saveLoading.hidden) return;
+  if (state.mustSearch || (!elements.form.elements.id.value && !state.propositionToken)) {
+    lookupMessage("Pesquise e selecione uma proposição para continuar.", true);
+    elements.searchProposition.scrollIntoView({ block: "center" });
+    elements.searchProposition.focus();
+    return;
+  }
+  for (const field of [elements.form.elements.projeto, elements.form.elements.ementa]) {
+    if (!field.checkValidity()) {
+      field.reportValidity();
+      return;
+    }
+  }
+  showFormStep("followup", true);
 }
 
 function formatFileSize(bytes) {
@@ -736,6 +810,8 @@ function setLookupBusy(busy) {
   elements.searchProposition.disabled = busy;
   elements.searchProposition.textContent = busy ? "Consultando…" : "Pesquisar";
   elements.saveRecord.disabled = busy;
+  elements.nextStage.disabled = busy;
+  elements.stepFollowup.disabled = busy;
   elements.propositionResults.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
 }
 
@@ -878,12 +954,13 @@ function openNewRecord() {
   elements.deleteRecord.hidden = true;
   renderExistingAttachment(null);
   renderRecordHistory(null);
+  showFormStep("project");
   rememberRecordFormState();
   elements.dialog.showModal();
   requestAnimationFrame(() => elements.searchType.focus());
 }
 
-function openEditRecord(id) {
+function openEditRecord(id, step = "project") {
   const record = state.records.find((item) => item.id === id);
   if (!record) {
     showToast("O registro não está mais disponível.", "error");
@@ -903,6 +980,7 @@ function openEditRecord(id) {
   elements.deleteRecord.hidden = false;
   renderExistingAttachment(record);
   renderRecordHistory(record);
+  showFormStep(step);
   rememberRecordFormState();
   elements.dialog.showModal();
 }
@@ -967,6 +1045,7 @@ function setSaving(saving) {
   elements.cancelDialog.disabled = saving;
   elements.closeDialog.disabled = saving;
   elements.attachmentInput.disabled = saving;
+  for (const button of [elements.previousStage, elements.nextStage, elements.stepProject, elements.stepFollowup]) button.disabled = saving;
   for (const button of elements.pendingAttachments.querySelectorAll("button")) button.disabled = saving;
   elements.saveLabel.hidden = saving;
   elements.saveLoading.hidden = !saving;
@@ -978,6 +1057,10 @@ async function refreshData() {
 
 async function saveRecord(event) {
   event.preventDefault();
+  if (state.formStep === "project") {
+    advanceToFollowup();
+    return;
+  }
   if (state.lookupBusy || !elements.saveLoading.hidden) return;
   if (state.mustSearch || (!elements.form.elements.id.value && !state.propositionToken)) {
     lookupMessage("Pesquise e selecione uma proposição antes de salvar.", true);
@@ -1226,17 +1309,26 @@ function setupEvents() {
   elements.recordsBody.addEventListener("click", (event) => {
     const details = event.target.closest("[data-details-id]");
     if (details) openRecordDetails(Number(details.dataset.detailsId));
-    const button = event.target.closest("[data-edit-id]");
-    if (button) openEditRecord(Number(button.dataset.editId));
   });
 
   const detailsDialog = document.querySelector("#details-dialog");
   document.querySelector("#close-details").addEventListener("click", () => detailsDialog.close());
   closeOnBackdropClick(detailsDialog, () => detailsDialog.close());
+  detailsDialog.querySelector(".record-tabs").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-details-tab]");
+    if (button) setDetailsTab(button.dataset.detailsTab);
+  });
+  detailsDialog.querySelector(".record-tabs").addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    const selected = detailsDialog.querySelector('[role="tab"][aria-selected="true"]');
+    setDetailsTab(selected.dataset.detailsTab === "project" ? "followup" : "project", true);
+  });
   document.querySelector("#details-edit").addEventListener("click", () => {
     const id = Number(detailsDialog.dataset.recordId);
+    const step = detailsDialog.querySelector('[role="tab"][aria-selected="true"]').dataset.detailsTab;
     detailsDialog.close();
-    openEditRecord(id);
+    openEditRecord(id, step);
   });
 
   for (const button of elements.navButtons) {
@@ -1244,6 +1336,10 @@ function setupEvents() {
   }
 
   elements.form.addEventListener("submit", saveRecord);
+  elements.nextStage.addEventListener("click", advanceToFollowup);
+  elements.previousStage.addEventListener("click", () => showFormStep("project", true));
+  elements.stepProject.addEventListener("click", () => showFormStep("project", true));
+  elements.stepFollowup.addEventListener("click", advanceToFollowup);
   elements.deleteRecord.addEventListener("click", deleteRecord);
   elements.attachmentInput.addEventListener("change", queueAttachments);
   elements.pendingAttachments.addEventListener("click", event => {
