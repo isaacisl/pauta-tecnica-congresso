@@ -94,6 +94,20 @@ test("Senado lê colegiado da autuação e despacho explícito nas movimentaçõ
   assert.equal(calls.length, 2);
 });
 
+test("Senado preserva o código da matéria quando o processo inicial usa o mesmo ID", async () => {
+  const senate = { id: 9077370, codigoMateria: 174939, identificacao: "PL 3451/2026", casaIdentificadora: "SF",
+    idProcessoCasaInicial: 9077370, identificacaoProcessoInicial: "PL 3451/2026", siglaCasaIniciadora: "SF" };
+  const client = createSenadoClient(async (url) => Response.json(url.pathname.includes("/movimentacoes/") ? {} : senate));
+  const relation = await client.relations(senate.id);
+  assert.equal(relation.identifiers.length, 1);
+  assert.equal(relation.identifiers[0].codigoMateria, 174939);
+  const database = createDatabase(":memory:");
+  try {
+    const matter = database.saveMatter(relation.proposition, [relation]);
+    assert.equal(matter.identifiers[0].codigoMateria, 174939);
+  } finally { database.close(); }
+});
+
 test("falha nas tramitações não impede selecionar e salvar com valores manuais ou em branco", async () => {
   const database = createDatabase(":memory:");
   const service = createPropositionService({ database,

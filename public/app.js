@@ -1,3 +1,5 @@
+import { officialLinks } from "./official-links.js";
+
 const state = {
   parameters: null,
   recordFilterOptions: null,
@@ -275,22 +277,6 @@ function statusChip(value) {
   return `<span class="status-chip ${chipClass(value)}">${escapeHtml(value)}</span>`;
 }
 
-function officialLinks(record) {
-  const identifiers = record.matter?.identifiers || [];
-  const validId = (value) => Number.isSafeInteger(value) && value > 0;
-  const camaraId = identifiers.find((identifier) => identifier.source === "camara" && validId(identifier.externalId))?.externalId
-    || (validId(record.camara?.id) ? record.camara.id : null)
-    || (record.proposition?.source === "camara" && validId(record.proposition.id) ? record.proposition.id : null);
-  const senado = identifiers.find((identifier) => identifier.source === "senado" && identifier.house === "SF"
-    && identifier.externalId === record.proposition?.id && validId(identifier.codigoMateria))
-    || identifiers.find((identifier) => identifier.source === "senado" && identifier.house === "SF" && validId(identifier.codigoMateria));
-
-  return [
-    ...(camaraId ? [{ source: "camara", label: "Câmara dos Deputados", href: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${camaraId}` }] : []),
-    ...(senado ? [{ source: "senado", label: "Senado Federal", href: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${senado.codigoMateria}` }] : [])
-  ];
-}
-
 function detailItem(label, value, { wide = false, html = false } = {}) {
   return `<div class="${wide ? "details-wide" : ""}"><dt>${escapeHtml(label)}</dt><dd>${html ? value : escapeHtml(value || "Não informado")}</dd></div>`;
 }
@@ -320,6 +306,7 @@ function openRecordDetails(id) {
   if (!record) return;
   const proposition = record.proposition || record.camara;
   const links = officialLinks(record);
+  const senatePage = links.find((link) => link.source === "senado");
   const dialog = document.querySelector("#details-dialog");
   dialog.dataset.recordId = String(id);
   const officialLinkMarkup = links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("");
@@ -339,7 +326,7 @@ function openRecordDetails(id) {
     (proposition || record.matter ? detailSection("Origem e vínculos", [
       ...(proposition ? [detailItem(`Encontrada em: ${sourceNames(proposition)}`, `Projeto e ementa: ${sourceLabel(proposition.source)} · ID ${proposition.id}. Consulta de ${formatDateTime(proposition.consultadoEm)}.`, { wide: true })] : []),
       ...(record.matter ? [detailItem("Identificações da mesma matéria", matterIdentifications(record.matter.identifiers), { wide: true })] : []),
-      ...(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => detailItem("Dados e relações oficiais do Senado", `<a href="https://legis.senado.leg.br/dadosabertos/processo/${Number(identifier.evidence.id)}" target="_blank" rel="noopener noreferrer">Consultar processo no Senado</a> · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}`, { wide: true, html: true }))
+      ...(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => detailItem("Dados e relações oficiais do Senado", `${senatePage ? `<a href="${senatePage.href}" target="_blank" rel="noopener noreferrer">Abrir matéria no Senado</a>` : "Página pública não identificada"} · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}`, { wide: true, html: true }))
     ].join("")) : "");
   document.querySelector("#details-panel-followup").innerHTML =
     detailSection("Equipe responsável", detailItem("Área técnica", record.areaTecnica) + detailItem("Responsável", record.responsavel)) +
