@@ -601,6 +601,11 @@ h3 {
   font-weight: 500;
 }
 
+.field-help-missing {
+  color: var(--amber);
+  font-weight: 600;
+}
+
 .attachment-field input[type="file"] {
   width: 100%;
   max-width: 100%;

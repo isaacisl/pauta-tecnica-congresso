@@ -793,6 +793,8 @@ function showStatusPreview(proposition) {
 function showNavigationHints(proposition, selected = false) {
   const source = proposition?.navigationSource ? sourceLabel(proposition.navigationSource) : "fonte oficial";
   const saved = proposition && !selected;
+  elements.despachoHelp.classList.toggle("field-help-missing", Boolean(selected && !proposition?.despacho));
+  elements.comissaoHelp.classList.toggle("field-help-missing", Boolean(selected && !proposition?.atualComissao));
   elements.despachoHelp.textContent = selected
     ? proposition.despacho ? `Obtido da ${source}. Confira e ajuste se necessário.` : "Despacho não localizado na consulta. Você pode informar manualmente ou deixar em branco."
     : saved ? "Valor salvo no registro. Você pode ajustar ou deixar em branco; uma nova pesquisa tenta atualizá-lo." : "Pesquise a proposição para tentar obter o despacho. Se não houver, preencha manualmente ou deixe em branco.";
