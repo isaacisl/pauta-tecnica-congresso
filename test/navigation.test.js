@@ -29,6 +29,52 @@ test("Câmara extrai o último despacho formal e o órgão da última tramitaç�
   assert.deepEqual(calls, [`/api/v2/proposicoes/${camera.id}`, `/api/v2/proposicoes/${camera.id}/tramitacoes`]);
 });
 
+test("Câmara reconhece despacho de apensação sem mudar a regra da comissão", async () => {
+  const client = createCamaraClient(async (url) => Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [
+    { dataHora: "2026-09-02T15:06", sequencia: 10, siglaOrgao: "MESA",
+      codTipoTramitacao: "129", descricaoTramitacao: "Despacho de Apensação",
+      despacho: "Apense-se à(ao) PL 2142/2026.Proposição Sujeita à Apreciação do Plenário." },
+    { dataHora: "2026-09-02T17:13", sequencia: 16, siglaOrgao: "CTRAB",
+      codTipoTramitacao: "106", descricaoTramitacao: "Apensação", despacho: "Apensação desta proposição ao PL 2142/2026." },
+    { dataHora: "2026-09-02T00:00", sequencia: 17, siglaOrgao: "CCP",
+      codTipoTramitacao: "604", descricaoTramitacao: "Publicação de Proposição", despacho: "Encaminhada à publicação." }
+  ] : { id: 2634848, siglaTipo: "PL", numero: 3268, ano: 2026, ementa: "Ementa",
+    statusProposicao: { siglaOrgao: "CCP" } } }));
+  const result = await client.detail(2634848);
+  assert.equal(result.despacho, "Apense-se à(ao) PL 2142/2026.Proposição Sujeita à Apreciação do Plenário.");
+  assert.equal(result.atualComissao, "CTRAB");
+});
+
+test("nova pesquisa atualiza despacho de apensação mesmo com cache e matéria antigos", async () => {
+  const database = createDatabase(":memory:");
+  const proposition = { id: 2634848, siglaTipo: "PL", numero: 3268, ano: 2026, ementa: "Ementa",
+    statusProposicao: { dataHora: "2026-09-02T00:00", siglaOrgao: "CCP" } };
+  const calls = [];
+  const service = createPropositionService({ database,
+    camaraFetch: async (url) => {
+      calls.push(url.pathname);
+      if (url.pathname.endsWith("/tramitacoes")) return Response.json({ dados: [
+        { dataHora: "2026-09-02T15:06", sequencia: 10, siglaOrgao: "MESA",
+          codTipoTramitacao: "129", descricaoTramitacao: "Despacho de Apensação", despacho: "Apense-se ao PL 2142/2026." },
+        { dataHora: "2026-09-02T17:13", sequencia: 16, siglaOrgao: "CTRAB",
+          codTipoTramitacao: "106", descricaoTramitacao: "Apensação", despacho: "Apensação desta proposição." }
+      ] });
+      return Response.json({ dados: url.pathname.endsWith("/proposicoes") ? [proposition] : proposition });
+    },
+    senadoFetch: async () => Response.json([])
+  });
+  try {
+    database.saveMatter({ ...proposition, source: "camara", projeto: "PL 3268/2026",
+      despacho: "Despacho antigo.", atualComissao: "CTRAB", consultadoEm: new Date().toISOString() });
+    database.saveSearchCache("v3:PL:3268:2026", [{ despacho: "Despacho antigo." }]);
+    const result = await service.search(new URLSearchParams("siglaTipo=PL&numero=3268&ano=2026"));
+    assert.equal(result.cached, false);
+    assert.equal(result.results[0].despacho, "Apense-se ao PL 2142/2026.");
+    assert.equal(result.results[0].atualComissao, "CTRAB");
+    assert.ok(calls.includes("/api/v2/proposicoes/2634848/tramitacoes"));
+  } finally { database.close(); }
+});
+
 test("Senado lê colegiado da autuação e despacho explícito nas movimentações", async () => {
   const calls = [];
   const senate = { id: 8862684, codigoMateria: 169542, identificacao: "PL 3361/2025", casaIdentificadora: "SF",
