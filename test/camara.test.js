@@ -18,7 +18,7 @@ test("consulta exige os três parâmetros, percorre páginas e valida a seleçã
     calls.push(url);
     if (url.pathname.endsWith("/tramitacoes")) return Response.json({ dados: [] });
     if (url.pathname.endsWith("/autores")) return Response.json({ dados: [
-      { nome: "Segunda Autora", ordemAssinatura: 2 }, { nome: "Primeiro Autor", ordemAssinatura: 1 }
+      { nome: "Segunda Autora", tipo: "Deputado(a)", ordemAssinatura: 2 }, { nome: "Primeiro Autor", tipo: "Deputado(a)", ordemAssinatura: 1 }
     ] });
     if (!url.pathname.endsWith("/proposicoes")) return Response.json({ dados: official });
     return Response.json(url.searchParams.get("pagina") === "1"
@@ -45,7 +45,7 @@ test("consulta exige os três parâmetros, percorre páginas e valida a seleçã
   const input = client.recordInput({ ...fields, autor: "Autor forjado", propositionToken: selected.propositionToken, camara: { id: 9999 } });
   assert.equal(input.projeto, "PL 1234/2024");
   assert.equal(input.ementa, "Ementa oficial");
-  assert.equal(input.autor, "Primeiro Autor; Segunda Autora");
+  assert.equal(input.autor, "Primeiro Autor (Deputado(a)); Segunda Autora (Deputado(a))");
   assert.equal(input.camara.id, 42);
   assert.equal(input.camara.dataApresentacao, "2024-04-12T15:20");
   assert.equal(input.camara.statusDataHora, "2024-04-19T00:00");
@@ -87,7 +87,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
   let calls = 0;
   const camaraFetch = async (url) => {
     calls++;
-    if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Autora Oficial", ordemAssinatura: 1 }] });
+    if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Autora Oficial", tipo: "Deputado(a)", ordemAssinatura: 1 }] });
     return Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? [official] : official });
   };
   let app = await startServer({ port: 0, databasePath, camaraFetch, senadoFetch: async () => Response.json([]) });
@@ -104,7 +104,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     const saved = (await response.json()).record;
     assert.equal(saved.camara.id, 42);
     assert.equal(saved.projeto, "PL 1234/2024");
-    assert.equal(saved.autor, "Autora Oficial");
+    assert.equal(saved.autor, "Autora Oficial (Deputado(a))");
     assert.equal(saved.atualComissao, fields.atualComissao);
     assert.equal(calls, 4);
     await app.close();
@@ -114,7 +114,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     const updated = (await updatedResponse.json()).record;
     assert.deepEqual(updated.camara, saved.camara);
     assert.equal(updated.ementa, official.ementa);
-    assert.equal(updated.autor, "Autora Oficial");
+    assert.equal(updated.autor, "Autora Oficial (Deputado(a))");
     assert.equal(updated.haParecer, "Não");
     assert.equal(calls, 4);
     assert.equal((await request(`/api/records/${saved.id}`, { ...saved, projeto: "PL 999/2024" }, "PUT")).status, 422);

@@ -22,7 +22,7 @@ function setup({ collision = false, noRelation = false, senateDown = false, came
   const other = { ...camara, id: 9000001, numero: 3361, ano: 2025 };
   const camaraFetch = async (url) => {
     calls.push(url.href);
-    if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Autora da Câmara", ordemAssinatura: 1 }] });
+    if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Autora da Câmara", tipo: "Deputado(a)", ordemAssinatura: 1 }] });
     if (url.pathname.endsWith("/tramitacoes")) return Response.json({ dados: [] });
     if (!url.pathname.endsWith("/proposicoes")) {
       assert.ok([camara.id, other.id].includes(Number(url.pathname.split("/").at(-1))), "Senate process IDs must never be used as Câmara IDs");
@@ -57,12 +57,12 @@ test("PL 3361/2025 resolve para PL 7108/2017; IDs ficam separados e cache persis
     const selected = await service.select(camara.id, found.searchToken);
     assert.equal(calls.length, 8);
     assert.equal(selected.proposition.id, camara.id);
-    assert.equal(selected.proposition.autor, "Autora da Câmara");
+    assert.equal(selected.proposition.autor, "Autora da Câmara (Deputado(a))");
     assert.equal(selected.proposition.identifiers.find((identity) => identity.externalId === 8862684).codigoMateria, 169542);
     assert.equal(database.getMatterBySenadoId(8862683).id, database.getMatterByCamaraId(camara.id).id);
     assert.equal(database.getMatterBySenadoId(8862684).id, selected.proposition.matterId);
     const saved = database.create(service.recordInput({ ...fields, propositionToken: selected.propositionToken }));
-    assert.equal(saved.autor, "Autora da Câmara");
+    assert.equal(saved.autor, "Autora da Câmara (Deputado(a))");
     assert.equal(saved.atualComissao, "Comissão manual");
     assert.equal(saved.camara.dataApresentacao, "2017-03-15T11:55");
     assert.equal(database.list({ q: "PL 3361/2025" })[0].id, saved.id);
