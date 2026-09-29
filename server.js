@@ -44,6 +44,7 @@ const exportColumns = Object.freeze([
   ["Área Técnica", "areaTecnica"],
   ["Responsável", "responsavel"],
   ["Projeto", "projeto"],
+  ["Autor(es)", "autor"],
   ["Ementa", "ementa"],
   ["Despacho", "despacho"],
   ["Atual comissão", "atualComissao"],

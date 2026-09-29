@@ -22,6 +22,7 @@ function setup({ collision = false, noRelation = false, senateDown = false, came
   const other = { ...camara, id: 9000001, numero: 3361, ano: 2025 };
   const camaraFetch = async (url) => {
     calls.push(url.href);
+    if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Autora da Câmara", ordemAssinatura: 1 }] });
     if (url.pathname.endsWith("/tramitacoes")) return Response.json({ dados: [] });
     if (!url.pathname.endsWith("/proposicoes")) {
       assert.ok([camara.id, other.id].includes(Number(url.pathname.split("/").at(-1))), "Senate process IDs must never be used as Câmara IDs");
@@ -54,12 +55,14 @@ test("PL 3361/2025 resolve para PL 7108/2017; IDs ficam separados e cache persis
     assert.deepEqual(found.results[0].identifications, [{ house: "CD", name: "PL 7108/2017" }, { house: "SF", name: "PL 3361/2025" }]);
     await assert.rejects(() => service.select(8862684, found.searchToken));
     const selected = await service.select(camara.id, found.searchToken);
-    assert.equal(calls.length, 7);
+    assert.equal(calls.length, 8);
     assert.equal(selected.proposition.id, camara.id);
+    assert.equal(selected.proposition.autor, "Autora da Câmara");
     assert.equal(selected.proposition.identifiers.find((identity) => identity.externalId === 8862684).codigoMateria, 169542);
     assert.equal(database.getMatterBySenadoId(8862683).id, database.getMatterByCamaraId(camara.id).id);
     assert.equal(database.getMatterBySenadoId(8862684).id, selected.proposition.matterId);
     const saved = database.create(service.recordInput({ ...fields, propositionToken: selected.propositionToken }));
+    assert.equal(saved.autor, "Autora da Câmara");
     assert.equal(saved.atualComissao, "Comissão manual");
     assert.equal(saved.camara.dataApresentacao, "2017-03-15T11:55");
     assert.equal(database.list({ q: "PL 3361/2025" })[0].id, saved.id);
@@ -68,7 +71,7 @@ test("PL 3361/2025 resolve para PL 7108/2017; IDs ficam separados e cache persis
     const cached = await restarted.search(query());
     assert.equal(cached.cached, true);
     const reselected = await restarted.select(camara.id, cached.searchToken);
-    assert.equal(calls.length, 7, "No API calls on repeat search and selection");
+    assert.equal(calls.length, 8, "No API calls on repeat search and selection");
     assert.equal(reselected.proposition.matterId, saved.matterId);
     const reverse = await restarted.search(query(7108, 2017));
     const reverseSelection = await restarted.select(camara.id, reverse.searchToken);

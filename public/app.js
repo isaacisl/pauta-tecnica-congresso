@@ -74,6 +74,7 @@ const elements = {
   form: document.querySelector("#record-form"),
   formBody: document.querySelector("#record-form > .dialog-body"),
   formProject: document.querySelector("#form-stage-project"),
+  projectFields: document.querySelector("#project-fields"),
   formFollowup: document.querySelector("#form-stage-followup"),
   selectedProjectName: document.querySelector("#selected-project-name"),
   stepProject: document.querySelector("#step-project"),
@@ -87,6 +88,7 @@ const elements = {
   searchStatus: document.querySelector("#proposition-search-status"),
   statusPreview: document.querySelector("#proposition-status-preview"),
   propositionResults: document.querySelector("#proposition-results"),
+  autorHelp: document.querySelector("#autor-help"),
   despachoHelp: document.querySelector("#despacho-help"),
   comissaoHelp: document.querySelector("#comissao-help"),
   dialogKicker: document.querySelector("#dialog-kicker"),
@@ -126,6 +128,7 @@ const labels = Object.freeze([
   ["Área técnica", "areaTecnica"],
   ["Responsável", "responsavel"],
   ["Projeto", "projeto"],
+  ["Autor(es)", "autor"],
   ["Ementa", "ementa"],
   ["Despacho", "despacho"],
   ["Atual comissão", "atualComissao"],
@@ -313,6 +316,7 @@ function openRecordDetails(id) {
   document.querySelector("#details-panel-project").innerHTML =
     detailSection("Identificação", [
       detailItem("Projeto", record.projeto, { wide: true }),
+      detailItem("Autor(es)", record.autor, { wide: true }),
       detailItem("Ementa", record.ementa, { wide: true }),
       ...(links.length ? [detailItem("Páginas oficiais da matéria", `<span class="official-links">${officialLinkMarkup}</span>`, { wide: true, html: true })] : [])
     ].join("")) +
@@ -780,6 +784,10 @@ function showStatusPreview(proposition) {
 function showNavigationHints(proposition, selected = false) {
   const source = proposition?.navigationSource ? sourceLabel(proposition.navigationSource) : "fonte oficial";
   const saved = proposition && !selected;
+  elements.autorHelp.classList.toggle("field-help-missing", Boolean(selected && !proposition?.autor));
+  elements.autorHelp.textContent = selected
+    ? proposition.autor ? `Autoria informada pela ${sourceLabel(proposition.source)}.` : "Autoria não localizada na consulta. Confira a página oficial da matéria."
+    : saved ? "Autoria salva no registro. Uma nova pesquisa pode atualizá-la." : "";
   elements.despachoHelp.classList.toggle("field-help-missing", Boolean(selected && !proposition?.despacho));
   elements.comissaoHelp.classList.toggle("field-help-missing", Boolean(selected && !proposition?.atualComissao));
   elements.despachoHelp.textContent = selected
@@ -821,6 +829,7 @@ function resetLookup(record = null) {
   state.searchToken = "";
   state.lookupPreviousProject = "";
   state.mustSearch = !record;
+  elements.projectFields.hidden = !record;
   elements.searchType.value = state.proposition?.siglaTipo || "";
   elements.searchNumber.value = state.proposition?.numero || "";
   elements.searchYear.value = state.proposition?.ano || "";
@@ -845,6 +854,8 @@ function invalidateLookup() {
   state.searchToken = "";
   elements.form.elements.projeto.value = "";
   elements.form.elements.ementa.value = "";
+  elements.form.elements.autor.value = "";
+  elements.projectFields.hidden = true;
   elements.form.elements.ementa.readOnly = true;
   elements.form.elements.ementa.required = false;
   elements.propositionResults.innerHTML = "";
@@ -867,7 +878,9 @@ async function selectProposition(id, version = state.lookupVersion) {
     state.mustSearch = false;
     const previousProject = state.lookupPreviousProject || elements.form.elements.projeto.value;
     elements.form.elements.projeto.value = payload.proposition.projeto;
+    elements.form.elements.autor.value = payload.proposition.autor || "";
     elements.form.elements.ementa.value = payload.proposition.ementa;
+    elements.projectFields.hidden = false;
     for (const field of ["despacho", "atualComissao"]) {
       const officialValue = payload.proposition[field] || "";
       if (officialValue || (previousProject && previousProject !== payload.proposition.projeto)) {
@@ -883,7 +896,7 @@ async function selectProposition(id, version = state.lookupVersion) {
     const missing = [["despacho", "despacho"], ["atualComissao", "comissão"]].filter(([field]) => !payload.proposition[field]).map(([, label]) => label);
     const missingNote = missing.length === 2 ? " Despacho e comissão não foram localizados. Você pode preencher esses campos ou deixá-los em branco."
       : missing.length === 1 ? ` ${missing[0] === "despacho" ? "O despacho não foi localizado" : "A comissão não foi localizada"}. Você pode preencher o campo ou deixá-lo em branco.` : "";
-    lookupMessage(`Proposição encontrada com sucesso em: ${sourceNames(payload.proposition)}. ${payload.proposition.projeto} selecionado. Confira os dados e complete os demais campos.${missingNote}${payload.proposition.navigationWarning ? ` Atenção: ${payload.proposition.navigationWarning}` : ""}${payload.proposition.ementa ? "" : " A fonte não informou uma ementa."}${state.lookupWarnings.length ? ` Atenção: ${state.lookupWarnings.join(" ")}` : ""}`, false, true);
+    lookupMessage(`Proposição encontrada com sucesso em: ${sourceNames(payload.proposition)}. ${payload.proposition.projeto} selecionado. Confira os dados e complete os demais campos.${missingNote}${payload.proposition.authorWarning ? ` Atenção: ${payload.proposition.authorWarning}` : ""}${payload.proposition.navigationWarning ? ` Atenção: ${payload.proposition.navigationWarning}` : ""}${payload.proposition.ementa ? "" : " A fonte não informou uma ementa."}${state.lookupWarnings.length ? ` Atenção: ${state.lookupWarnings.join(" ")}` : ""}`, false, true);
   } catch (error) {
     if (version === state.lookupVersion) lookupMessage(error.message, true);
   } finally {

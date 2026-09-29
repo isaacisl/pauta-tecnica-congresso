@@ -32,6 +32,7 @@ before(async () => {
     databasePath: path.join(temporaryDirectory, "test.sqlite"),
     senadoFetch: async () => Response.json([]),
     camaraFetch: async (url) => {
+      if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Autora Teste", ordemAssinatura: 1 }] });
       const number = Number(url.searchParams.get("numero") || url.pathname.split("/").at(-1));
       const proposition = { id: number, siglaTipo: "PL", numero: number, ano: 2026, ementa: sampleRecord.ementa, dataApresentacao: "2026-01-10T14:30", statusProposicao: { dataHora: "2026-02-20T15:45" } };
       return Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? [proposition] : proposition });
@@ -81,6 +82,7 @@ test("valida, cria, filtra e edita registros", async () => {
   const created = (await createResponse.json()).record;
   assert.equal(createResponse.status, 201);
   assert.equal(created.projeto, sampleRecord.projeto);
+  assert.equal(created.autor, "Autora Teste");
   assert.equal(created.despacho, sampleRecord.despacho);
   assert.ok(created.createdAt);
   assert.equal(created.editedAt, null);
@@ -173,6 +175,8 @@ test("totaliza e exporta a base em CSV compatível com Excel", async () => {
   assert.match(exportResponse.headers.get("content-disposition"), /registros-areas-tecnicas-/);
   assert.match(csv, /sep=;/);
   assert.match(csv, /PL 1234\/2026/);
+  assert.match(csv, /Autor\(es\)/);
+  assert.match(csv, /Autora Teste/);
   assert.match(csv, /Área Técnica/);
   assert.match(csv, /"Despacho";"Atual comissão"/);
   assert.match(csv, /À Comissão de Educação/);

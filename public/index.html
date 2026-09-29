@@ -87,7 +87,7 @@
               <span>Buscar</span>
               <span class="input-with-icon">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>
-                <input id="filter-q" name="q" type="search" placeholder="Projeto, ementa, comissão ou responsável" autocomplete="off" />
+                <input id="filter-q" name="q" type="search" placeholder="Projeto, autor, ementa, comissão ou responsável" autocomplete="off" />
               </span>
             </label>
             <label class="field">
@@ -321,7 +321,7 @@
           <div class="form-grid">
             <section class="proposition-search form-span-2" aria-labelledby="proposition-search-title">
               <h3 id="proposition-search-title">Buscar proposição na Câmara e no Senado</h3>
-              <p>Informe tipo, número e ano. A busca preenche projeto, ementa, despacho e comissão quando disponíveis. Confira os dados: despacho e comissão podem ser ajustados ou deixados em branco.</p>
+              <p>Informe tipo, número e ano. Após encontrar a matéria, você verá projeto, autoria, ementa, despacho e comissão. Confira os dados: despacho e comissão podem ser ajustados ou deixados em branco.</p>
               <div class="proposition-search-fields">
                 <label class="field"><span>Tipo</span><select id="search-type"><option value="">Selecione o tipo</option></select></label>
                 <label class="field"><span>Número</span><input id="search-number" type="text" inputmode="numeric" maxlength="9" placeholder="Ex.: 1234" /></label>
@@ -332,10 +332,16 @@
               <div id="proposition-status-preview" hidden></div>
               <div id="proposition-results" class="proposition-results" hidden></div>
             </section>
+            <div id="project-fields" class="form-grid form-span-2" hidden>
             <label class="field form-span-2">
               <span>Projeto <b aria-hidden="true">*</b></span>
               <input id="field-projeto" name="projeto" type="text" maxlength="300" placeholder="Preenchido pela busca legislativa" readonly required />
               <small class="field-error" data-error-for="projeto"></small>
+            </label>
+            <label class="field form-span-2">
+              <span>Autor(es)</span>
+              <textarea id="field-autor" name="autor" rows="2" maxlength="12000" placeholder="Preenchido pela busca legislativa" readonly></textarea>
+              <small id="autor-help" class="field-help"></small>
             </label>
             <label class="field form-span-2">
               <span>Ementa <b aria-hidden="true">*</b></span>
@@ -354,6 +360,7 @@
               <small id="comissao-help" class="field-help">Pesquise a proposição para tentar obter a comissão atual. Se não houver, preencha manualmente ou deixe em branco.</small>
               <small class="field-error" data-error-for="atualComissao"></small>
             </label>
+            </div>
           </div>
           </section>
           <section id="form-stage-followup" class="form-stage" aria-labelledby="form-followup-title" hidden>
@@ -506,6 +513,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260928-5"></script>
+    <script type="module" src="/app.js?v=20260929-1"></script>
   </body>
 </html>

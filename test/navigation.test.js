@@ -14,6 +14,7 @@ test("Câmara extrai o último despacho formal e o órgão da última tramitaç�
   const calls = [];
   const client = createCamaraClient(async (url) => {
     calls.push(url.pathname);
+    if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Rodrigo Agostinho", ordemAssinatura: 1 }] });
     if (url.pathname.endsWith("/tramitacoes")) return Response.json({ dados: [
       olderDispatch,
       { dataHora: "2026-01-10T10:00", sequencia: 9, siglaOrgao: "CCJC", descricaoTramitacao: "Recebimento", despacho: "Recebido pela comissão." },
@@ -25,8 +26,9 @@ test("Câmara extrai o último despacho formal e o órgão da última tramitaç�
   const result = await client.detail(camera.id);
   assert.equal(result.despacho, "Novo despacho de distribuição.");
   assert.equal(result.atualComissao, "CCJC");
+  assert.equal(result.autor, "Rodrigo Agostinho");
   assert.equal(result.navigationWarning, null);
-  assert.deepEqual(calls, [`/api/v2/proposicoes/${camera.id}`, `/api/v2/proposicoes/${camera.id}/tramitacoes`]);
+  assert.deepEqual(calls, [`/api/v2/proposicoes/${camera.id}`, `/api/v2/proposicoes/${camera.id}/tramitacoes`, `/api/v2/proposicoes/${camera.id}/autores`]);
 });
 
 test("Câmara reconhece despacho de apensação sem mudar a regra da comissão", async () => {
@@ -78,6 +80,8 @@ test("nova pesquisa atualiza despacho de apensação mesmo com cache e matéria 
 test("Senado lê colegiado da autuação e despacho explícito nas movimentações", async () => {
   const calls = [];
   const senate = { id: 8862684, codigoMateria: 169542, identificacao: "PL 3361/2025", casaIdentificadora: "SF",
+    autoriaIniciativa: [{ autor: "Deputada Originária", ordem: 1 }, { autor: "Deputado Coautor", ordem: 2 }],
+    documento: { autoria: [{ autor: "Câmara dos Deputados" }] },
     autuacoes: [{ dataAutuacao: "2025-01-01", siglaColegiadoAtual: "CE" }, { dataAutuacao: "2026-01-01", siglaColegiadoAtual: "CCJ" }] };
   const client = createSenadoClient(async (url) => {
     calls.push(url.pathname);
@@ -90,6 +94,7 @@ test("Senado lê colegiado da autuação e despacho explícito nas movimentaçõ
   const result = await client.relations(senate.id);
   assert.equal(result.proposition.despacho, "À Comissão de Constituição e Justiça.");
   assert.equal(result.proposition.atualComissao, "CCJ");
+  assert.equal(result.proposition.autor, "Deputada Originária; Deputado Coautor");
   assert.equal(result.proposition.navigationWarning, null);
   assert.equal(calls.length, 2);
 });
