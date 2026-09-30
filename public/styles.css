@@ -1190,8 +1190,6 @@ td:nth-child(2) .cell-truncate {
   line-height: 1;
 }
 
-.record-count-card p { margin: 0; color: var(--muted); font-size: 12px; }
-
 .total-hero {
   position: relative;
   display: flex;
@@ -1217,12 +1215,6 @@ td:nth-child(2) .cell-truncate {
   font-weight: 730;
   letter-spacing: -0.055em;
   line-height: 1;
-}
-
-.total-hero p {
-  margin-bottom: 0;
-  color: #cfdef1;
-  font-size: 13px;
 }
 
 .hero-decoration {
