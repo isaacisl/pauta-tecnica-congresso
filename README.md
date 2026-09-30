@@ -22,11 +22,13 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 - listas de áreas, responsáveis e status baseadas na aba `Parâmetros` da planilha original;
 - filtros por área técnica, responsável, parecer, sugestão de emenda e posicionamento;
 - busca por projeto, ementa, comissão ou responsável;
-- aba de totalização filtrável, com quantidades e percentuais por área e pelos três campos de status;
+- aba de totalização filtrável, com número de projetos distintos e de acompanhamentos, além de quantidades e percentuais por área e pelos três campos de status;
 - exportação protegida por senha da base completa ou filtrada em CSV compatível com Excel;
 - histórico de múltiplos documentos em PDF, Office, texto ou imagem, com data de inclusão e download individual;
 - datas de inclusão e de última edição, além de proteção contra fechamento com alterações não salvas.
 - aviso vermelho na lista quando uma nova tramitação oficial é detectada; detalhes da novidade e confirmação manual de que foi vista.
+
+Na totalização, **projetos distintos** usa o ID interno da matéria legislativa quando existe vínculo oficial: várias áreas ou responsáveis acompanhando a mesma matéria contam uma vez, inclusive se Câmara e Senado usam numerações diferentes já vinculadas. Registros antigos sem vínculo oficial são agrupados apenas pelo nome do projeto, ignorando diferenças de maiúsculas e espaços; não se cria equivalência entre matérias diferentes por semelhança de texto. Os filtros afetam ambos os indicadores. As distribuições e percentuais continuam contando acompanhamentos (registros), pois cada área pode ter seu próprio parecer e posicionamento.
 
 ## Persistência
 

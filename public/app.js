@@ -66,6 +66,7 @@ const elements = {
   emptyDescription: document.querySelector("#empty-description"),
   grandTotal: document.querySelector("#grand-total"),
   grandTotalCaption: document.querySelector("#grand-total-caption"),
+  uniqueProjects: document.querySelector("#unique-projects"),
   areaTotals: document.querySelector("#area-totals"),
   parecerTotals: document.querySelector("#parecer-totals"),
   emendaTotals: document.querySelector("#emenda-totals"),
@@ -567,10 +568,11 @@ function renderAreaTotals(series, total) {
 
 function renderTotals() {
   if (!state.totals || !state.parameters) return;
+  elements.uniqueProjects.textContent = state.totals.uniqueProjects;
   elements.grandTotal.textContent = state.totals.total;
   elements.grandTotalCaption.textContent = hasActiveTotalFilters()
-    ? "projetos encontrados com os filtros aplicados"
-    : "projetos prioritários registrados";
+    ? "registros com os filtros aplicados"
+    : "registros cadastrados";
   elements.totalRecords.textContent = state.totals.overallTotal ?? state.totals.total;
   renderAreaTotals(state.totals.byArea, state.totals.total);
   renderMiniStats(elements.parecerTotals, state.parameters.pareceres, state.totals.byParecer, state.totals.total);
