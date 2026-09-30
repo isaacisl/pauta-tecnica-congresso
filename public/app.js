@@ -528,6 +528,12 @@ function formatPercentage(count, total) {
   }).format(count / total);
 }
 
+function countUniqueProjects(records) {
+  return new Set(records.map((record) => record.matterId
+    ? `matter:${record.matterId}`
+    : `legacy:${String(record.projeto || "").normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR")}`)).size;
+}
+
 function renderMiniStats(container, options, series, total) {
   const counts = valueMap(series);
   container.innerHTML = options
@@ -568,7 +574,8 @@ function renderAreaTotals(series, total) {
 
 function renderTotals() {
   if (!state.totals || !state.parameters) return;
-  elements.uniqueProjects.textContent = state.totals.uniqueProjects;
+  elements.uniqueProjects.textContent = Number.isInteger(state.totals.uniqueProjects)
+    ? state.totals.uniqueProjects : "—";
   elements.grandTotal.textContent = state.totals.total;
   elements.grandTotalCaption.textContent = hasActiveTotalFilters()
     ? "registros com os filtros aplicados"
@@ -590,6 +597,13 @@ async function loadTotals() {
       api(`/api/totals${suffix}`),
       api(`/api/filter-options${suffix}`)
     ]);
+    if (requestId !== state.totalsRequestId) return;
+    // During deployment, the browser may receive new files while the old Node
+    // process is still serving the API. Keep the indicator useful until restart.
+    if (!Number.isInteger(totals.uniqueProjects)) {
+      const records = await api(`/api/records${suffix}`);
+      totals.uniqueProjects = countUniqueProjects(records.records);
+    }
     if (requestId !== state.totalsRequestId) return;
     state.totalFilterOptions = filterOptions;
     if (renderTotalFilterOptions()) {

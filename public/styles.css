@@ -1146,7 +1146,7 @@ td:nth-child(2) .cell-truncate {
 
 .totals-overview-row {
   display: grid;
-  grid-template-columns: 190px 200px minmax(0, 1fr);
+  grid-template-columns: 200px 200px minmax(0, 1fr);
   align-items: stretch;
   gap: 18px;
   margin-bottom: 18px;
@@ -1163,7 +1163,7 @@ td:nth-child(2) .cell-truncate {
   padding: 20px;
 }
 
-.totals-overview-row .total-hero strong { font-size: 42px; }
+.totals-overview-row .total-hero strong { font-size: 44px; }
 
 .totals-overview-row .hero-decoration {
   display: none;
