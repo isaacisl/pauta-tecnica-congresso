@@ -288,6 +288,20 @@ function detailSection(title, content, subtitle = "") {
   return `<section class="detail-section"><div class="detail-section-heading"><h3>${escapeHtml(title)}</h3>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}</div><dl class="details-grid">${content}</dl></section>`;
 }
 
+function tramitationNoticeMarkup(record) {
+  const notice = record.tramitationNotice;
+  if (!notice?.count) return "";
+  const events = notice.events.map((event) => `<li class="tramitation-event">
+    <div class="tramitation-event-meta"><strong>${escapeHtml(sourceLabel(event.source))}</strong><time>${escapeHtml(formatCamaraDate(event.date))}</time>${event.organization ? `<span>${escapeHtml(event.organization)}</span>` : ""}</div>
+    <p>${escapeHtml(event.description)}</p>${event.detail && event.detail !== event.description ? `<p class="tramitation-event-detail">${escapeHtml(event.detail)}</p>` : ""}
+  </li>`).join("");
+  return `<section class="detail-section tramitation-notice" aria-labelledby="tramitation-notice-title">
+    <div class="detail-section-heading"><h3 id="tramitation-notice-title"><span class="notification-dot" aria-hidden="true"></span>${notice.count === 1 ? "Nova tramitação" : `${notice.count} novas tramitações`}</h3><p>Detectadas desde a última confirmação deste acompanhamento.</p></div>
+    <ol class="tramitation-event-list">${events}</ol>
+    <button class="button button-primary" type="button" data-acknowledge-tramitations="${notice.throughEventId}">Marcar atualizações como vistas</button>
+  </section>`;
+}
+
 function setDetailsTab(tab, focus = false) {
   const dialog = document.querySelector("#details-dialog");
   for (const name of ["project", "followup"]) {
@@ -314,6 +328,7 @@ function openRecordDetails(id) {
   dialog.dataset.recordId = String(id);
   const officialLinkMarkup = links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("");
   document.querySelector("#details-panel-project").innerHTML =
+    tramitationNoticeMarkup(record) +
     detailSection("Identificação", [
       detailItem("Projeto", record.projeto, { wide: true }),
       detailItem("Autor(es)", record.autor, { wide: true }),
@@ -393,7 +408,9 @@ function renderRecords() {
         const content = isStatus
           ? statusChip(record[field])
           : `<span class="${["areaTecnica", "projeto"].includes(field) ? "cell-primary " : ""}cell-truncate" title="${escapeHtml(record[field])}">${escapeHtml(record[field])}</span>`;
-        return `<td data-label="${escapeHtml(label)}">${content}</td>`;
+        const indicator = field === "projeto" && record.tramitationNotice?.count
+          ? `<span class="notification-dot" role="img" aria-label="${record.tramitationNotice.count} ${record.tramitationNotice.count === 1 ? "nova tramitação" : "novas tramitações"}" title="${record.tramitationNotice.count} ${record.tramitationNotice.count === 1 ? "nova tramitação" : "novas tramitações"}"></span>` : "";
+        return `<td data-label="${escapeHtml(label)}"><span class="project-cell-content">${content}${indicator}</span></td>`;
       });
       cells.push(`
         <td data-label="Data de inclusão">
@@ -405,7 +422,7 @@ function renderRecords() {
       cells.push(`
         <td data-label="Ações">
           <span class="row-actions">
-            <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Abrir ${escapeHtml(record.projeto)}" title="Abrir projeto e acompanhamento">
+            <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Abrir ${escapeHtml(record.projeto)}${record.tramitationNotice?.count ? `, ${record.tramitationNotice.count} novas tramitações` : ""}" title="Abrir projeto e acompanhamento">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
             ${preferredLink ? `<a class="row-action official-action" href="${preferredLink.href}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${escapeHtml(record.projeto)} no site oficial: ${escapeHtml(preferredLink.label)}" title="Abrir no site oficial: ${escapeHtml(preferredLink.label)}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>` : ""}
@@ -471,6 +488,18 @@ async function loadRecords({ showLoading = false } = {}) {
   } finally {
     if (requestId === state.requestId) setRecordsLoading(false);
   }
+}
+
+async function refreshRecordsInBackground() {
+  if (document.hidden || state.recordsLoading || state.recordsSearchTimer || document.querySelector("dialog[open]")) return;
+  const filterKey = currentFilters().toString();
+  const requestId = state.requestId;
+  try {
+    const payload = await api(`/api/records${filterKey ? `?${filterKey}` : ""}`);
+    if (requestId !== state.requestId || filterKey !== currentFilters().toString()) return;
+    state.records = payload.records;
+    renderRecords();
+  } catch { /* A temporary refresh failure must not interrupt the user's work. */ }
 }
 
 function valueMap(series) {
@@ -736,7 +765,7 @@ async function uploadAttachment(recordId, file, uploadKey) {
 
 // Câmara timestamps have no timezone suffix: preserve the official wall-clock date/time.
 function formatCamaraDate(value) {
-  const match = typeof value === "string" && value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  const match = typeof value === "string" && value.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
   return match ? `${match[3]}/${match[2]}/${match[1]}${match[4] ? ` às ${match[4]}:${match[5]}` : ""}` : "Não informada";
 }
 
@@ -1328,6 +1357,28 @@ function setupEvents() {
     const selected = detailsDialog.querySelector('[role="tab"][aria-selected="true"]');
     setDetailsTab(selected.dataset.detailsTab === "project" ? "followup" : "project", true);
   });
+  document.querySelector("#details-panel-project").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-acknowledge-tramitations]");
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    try {
+      const id = Number(detailsDialog.dataset.recordId);
+      const result = await api(`/api/records/${id}/tramitations/acknowledge`, {
+        method: "POST", body: JSON.stringify({ throughEventId: Number(button.dataset.acknowledgeTramitations) })
+      });
+      state.records = state.records.map((record) => record.id === id ? result.record : record);
+      renderRecords();
+      if (detailsDialog.open) {
+        button.closest(".tramitation-notice").outerHTML = result.record.tramitationNotice?.count
+          ? tramitationNoticeMarkup(result.record)
+          : '<section class="detail-section tramitation-notice"><p class="tramitation-seen-message">Atualizações marcadas como vistas.</p></section>';
+      }
+      showToast("Atualizações marcadas como vistas.");
+    } catch (error) {
+      button.disabled = false;
+      showToast(error.message, "error");
+    }
+  });
   document.querySelector("#details-edit").addEventListener("click", () => {
     const id = Number(detailsDialog.dataset.recordId);
     const step = detailsDialog.querySelector('[role="tab"][aria-selected="true"]').dataset.detailsTab;
@@ -1395,6 +1446,7 @@ async function init() {
     setupParameters();
     await Promise.all([loadRecords({ showLoading: true }), loadTotals()]);
     showView(window.location.hash === "#totalizacao" ? "totals" : "records");
+    window.setInterval(refreshRecordsInBackground, 60 * 1000);
   } catch (error) {
     elements.tableLoading.hidden = true;
     showToast(error.message, "error");

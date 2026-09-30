@@ -7,6 +7,7 @@ import { createDatabase, ValidationError } from "./lib/database.js";
 import { parameters } from "./lib/parameters.js";
 import { propositionTypes } from "./lib/camara.js";
 import { createPropositionService } from "./lib/propositions.js";
+import { createTramitationMonitor } from "./lib/tramitations.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(rootDir, "public");
@@ -234,10 +235,13 @@ export async function startServer({
   hostname = process.env.HOST || "127.0.0.1",
   databasePath = process.env.DATABASE_PATH || defaultDatabasePath,
   camaraFetch = fetch,
-  senadoFetch = fetch
+  senadoFetch = fetch,
+  tramitationCheckDelayMs = 10000,
+  tramitationCheckIntervalMs = 60 * 60 * 1000
 } = {}) {
   const database = createDatabase(databasePath);
   const propositions = createPropositionService({ database, camaraFetch, senadoFetch });
+  const monitor = createTramitationMonitor({ database, camaraFetch, senadoFetch });
   const uploadDirectory = path.join(path.dirname(databasePath), "uploads");
   await mkdir(uploadDirectory, { recursive: true });
 
@@ -394,6 +398,15 @@ export async function startServer({
         }
       }
 
+      const acknowledgeMatch = pathname.match(/^\/api\/records\/(\d+)\/tramitations\/acknowledge$/);
+      if (acknowledgeMatch && request.method === "POST") {
+        const { throughEventId } = await readJson(request);
+        const record = database.acknowledgeTramitations(Number(acknowledgeMatch[1]), throughEventId);
+        if (!record) sendError(response, 404, "Registro não encontrado.");
+        else send(response, 200, { record });
+        return;
+      }
+
       if (pathname === "/api/totals" && request.method === "GET") {
         send(response, 200, database.totals(getFilters(url)));
         return;
@@ -445,13 +458,28 @@ export async function startServer({
 
   const address = server.address();
   const url = `http://${hostname}:${address.port}`;
+  let monitorClosed = false;
+  let monitorTimer = null;
+  let monitorRun = Promise.resolve();
+  function scheduleMonitor(delay) {
+    monitorTimer = setTimeout(() => {
+      monitorRun = monitor.check().catch((error) => console.error("Falha na verificação de tramitações:", error))
+        .finally(() => { if (!monitorClosed) scheduleMonitor(tramitationCheckIntervalMs); });
+    }, delay);
+    monitorTimer.unref?.();
+  }
+  if (tramitationCheckDelayMs !== null) scheduleMonitor(tramitationCheckDelayMs);
 
   return {
     server,
     database,
     url,
+    checkTramitations: () => monitor.check(),
     close: async () => {
+      monitorClosed = true;
+      clearTimeout(monitorTimer);
       await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+      await monitorRun;
       database.close();
     }
   };

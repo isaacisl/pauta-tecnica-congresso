@@ -970,6 +970,18 @@ tbody tr:hover td:last-child {
   font-weight: 680;
 }
 
+.project-cell-content { display: flex; align-items: center; min-width: 0; gap: 7px; }
+.project-cell-content .cell-truncate { min-width: 0; }
+.notification-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: #cf3e39;
+  box-shadow: 0 0 0 3px #fbeae8;
+}
+
 .cell-truncate {
   display: -webkit-box;
   overflow: hidden;
@@ -1408,6 +1420,20 @@ td:nth-child(2) .cell-truncate {
 .detail-section-heading { margin-bottom: 11px; }
 .detail-section-heading h3 { margin: 0; color: var(--ink); font-size: 15px; }
 .detail-section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.tramitation-notice {
+  padding: 15px;
+  border: 1px solid #edc9c6;
+  border-radius: 11px;
+  background: #fff9f8;
+}
+.tramitation-notice .detail-section-heading h3 { display: flex; align-items: center; gap: 10px; }
+.tramitation-event-list { display: grid; gap: 8px; max-height: 340px; overflow-y: auto; margin: 0 0 13px; padding: 0; list-style: none; }
+.tramitation-event { padding: 11px 12px; border: 1px solid #ecd9d6; border-radius: 8px; background: #fff; }
+.tramitation-event-meta { display: flex; flex-wrap: wrap; gap: 5px 12px; color: var(--muted); font-size: 11px; }
+.tramitation-event-meta strong { color: var(--brand); }
+.tramitation-event p { margin: 7px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.tramitation-event .tramitation-event-detail { color: var(--muted); font-size: 12px; }
+.tramitation-seen-message { margin: 0; color: var(--brand); font-weight: 700; }
 
 .details-grid {
   display: grid;
