@@ -342,7 +342,6 @@ async function openRecordDetails(id) {
   state.records = state.records.map(item => item.id === id ? record : item);
   const proposition = record.proposition || record.camara;
   const links = officialLinks(record);
-  const senatePage = links.find((link) => link.source === "senado");
   const dialog = document.querySelector("#details-dialog");
   dialog.dataset.recordId = String(id);
   const officialLinkMarkup = links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("");
@@ -364,8 +363,7 @@ async function openRecordDetails(id) {
     ].join("")) +
     (proposition || record.matter ? detailSection("Origem e vínculos", [
       ...(proposition ? [detailItem(`Encontrada em: ${sourceNames(proposition)}`, `Projeto e ementa: ${sourceLabel(proposition.source)} · ID ${proposition.id}. Consulta de ${formatDateTime(proposition.consultadoEm)}.`, { wide: true })] : []),
-      ...(record.matter ? [detailItem("Identificações da mesma matéria", matterIdentifications(record.matter.identifiers), { wide: true })] : []),
-      ...(record.matter?.identifiers || []).filter((identifier) => identifier.source === "senado" && identifier.evidence).slice(0, 1).map((identifier) => detailItem("Dados e relações oficiais do Senado", `${senatePage ? `<a href="${senatePage.href}" target="_blank" rel="noopener noreferrer">Abrir matéria no Senado</a>` : "Página pública não identificada"} · verificado em ${escapeHtml(formatDateTime(identifier.evidence.consultedAt))}`, { wide: true, html: true }))
+      ...(record.matter ? [detailItem("Identificações da mesma matéria", matterIdentifications(record.matter.identifiers), { wide: true })] : [])
     ].join("")) : "");
   document.querySelector("#details-panel-followup").innerHTML =
     detailSection("Equipe responsável", detailItem("Área técnica", record.areaTecnica) + detailItem("Responsável", record.responsavel)) +
