@@ -628,6 +628,11 @@ h3 {
 .document-item strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
 .document-item small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
 .document-item > a, .document-item > button { flex-shrink: 0; }
+.document-actions { display: inline-flex; flex: none; align-items: center; gap: 14px; margin-left: auto; }
+.document-empty { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+.removed-documents { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.removed-documents summary { color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+.removed-documents .document-item { background: var(--surface-soft); }
 
 .attachment-field input[type="file"]::file-selector-button {
   height: 34px;

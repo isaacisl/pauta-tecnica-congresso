@@ -234,7 +234,7 @@ export async function startServer({
       const { pathname } = url;
 
       if (pathname === "/api/health" && request.method === "GET") {
-        send(response, 200, { status: "ok", apiVersion: 2 });
+        send(response, 200, { status: "ok", apiVersion: 3 });
         return;
       }
 
@@ -289,6 +289,15 @@ export async function startServer({
       if (historyMatch && request.method === "GET") {
         if (!database.get(Number(historyMatch[1]))) sendError(response, 404, "Registro não encontrado.");
         else send(response, 200, { history: database.history(Number(historyMatch[1])) });
+        return;
+      }
+
+      const attachmentRestoreMatch = pathname.match(/^\/api\/records\/(\d+)\/attachments\/(\d+)\/restore$/);
+      if (attachmentRestoreMatch && request.method === "POST") {
+        const { revision } = await readJson(request);
+        const record = database.restoreAttachment(Number(attachmentRestoreMatch[1]), Number(attachmentRestoreMatch[2]), revision);
+        if (!record) sendError(response, 404, "Documento removido não encontrado neste registro.");
+        else send(response, 200, { record });
         return;
       }
 
@@ -361,7 +370,15 @@ export async function startServer({
           return;
         }
 
-        sendError(response, 405, "Os documentos fazem parte do histórico. Envie um novo documento para acrescentá-lo ao registro.");
+        if (request.method === "DELETE" && attachmentId !== null) {
+          const { revision } = await readJson(request);
+          const updatedRecord = database.removeAttachment(id, attachmentId, revision);
+          if (!updatedRecord) sendError(response, 404, "Documento não encontrado neste registro.");
+          else send(response, 200, { record: updatedRecord });
+          return;
+        }
+
+        sendError(response, 405, "Método não permitido para este endereço de documento.");
         return;
       }
 

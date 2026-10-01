@@ -1,6 +1,6 @@
 import { officialLinks } from "./official-links.js";
 import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
-import { initializeHistoryUI } from "./record-history.js?v=20261001-1";
+import { initializeHistoryUI } from "./record-history.js?v=20261001-2";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 
 const state = {
@@ -374,7 +374,7 @@ async function openRecordDetails(id) {
       detailItem("Sugestão de emenda", statusChip(record.sugestaoEmenda), { html: true }),
       detailItem("Posicionamento", statusChip(record.posicionamento), { wide: true, html: true })
     ].join("")) +
-    detailSection("Documentos", record.attachments?.length ? detailItem(`Histórico de documentos (${record.attachments.length})`, attachmentHistoryMarkup(record), { wide: true, html: true }) : detailItem("Histórico de documentos", "Nenhum documento adicionado.", { wide: true })) +
+    detailSection("Documentos", (record.attachments?.length || record.removedAttachments?.length) ? detailItem(`Histórico de documentos (${(record.attachments?.length || 0) + (record.removedAttachments?.length || 0)})`, attachmentHistoryMarkup(record), { wide: true, html: true }) : detailItem("Histórico de documentos", "Nenhum documento adicionado.", { wide: true })) +
     detailSection("Histórico do acompanhamento", detailItem("Data de inclusão", formatDateTime(record.createdAt)) + (record.editedAt ? detailItem("Última edição", formatDateTime(record.editedAt)) : "")
       + detailItem("Alterações", '<button class="text-button" type="button" data-load-history>Ver histórico de alterações</button><div id="record-change-history"></div>', { wide: true, html: true }));
   setDetailsTab("project");
@@ -716,12 +716,45 @@ function formatFileSize(bytes) {
 }
 
 function renderExistingAttachment(record) {
-  elements.existingAttachment.hidden = !record?.attachments?.length;
-  elements.attachmentHistory.innerHTML = record ? attachmentHistoryMarkup(record) : "";
+  elements.existingAttachment.hidden = !(record?.attachments?.length || record?.removedAttachments?.length);
+  elements.attachmentHistory.innerHTML = record ? attachmentHistoryMarkup(record, true) : "";
 }
 
-function attachmentHistoryMarkup(record) {
-  return `<ul class="document-list">${(record.attachments || []).map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(formatFileSize(file.size))} · ${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))}` : "Data de inclusão não registrada (arquivo anterior ao histórico)"}</small></div><a class="text-button attachment-link" href="/api/records/${record.id}/attachments/${file.id}" aria-label="Baixar ${escapeHtml(file.name)}">Baixar</a></li>`).join("")}</ul>`;
+function attachmentHistoryMarkup(record, editable = false) {
+  const active = record.attachments || [];
+  const removed = record.removedAttachments || [];
+  const activeMarkup = active.length ? `<ul class="document-list">${active.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(formatFileSize(file.size))} · ${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))}` : "Data de inclusão não registrada (arquivo anterior ao histórico)"}</small></div><span class="document-actions"><a class="text-button attachment-link" href="/api/records/${record.id}/attachments/${file.id}" aria-label="Baixar ${escapeHtml(file.name)}">Baixar</a>${editable ? `<button type="button" class="text-button attachment-remove" data-remove-attachment="${file.id}" aria-label="Excluir ${escapeHtml(file.name)}">Excluir</button>` : ""}</span></li>`).join("")}</ul>` : '<p class="document-empty">Nenhum documento ativo.</p>';
+  const removedMarkup = removed.length ? `<details class="removed-documents"><summary>Documentos removidos (${removed.length})</summary><ul class="document-list">${removed.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))} · ` : ""}Removido em ${escapeHtml(formatDateTime(file.deletedAt))}</small></div>${editable ? `<button type="button" class="text-button" data-restore-attachment="${file.id}" aria-label="Restaurar ${escapeHtml(file.name)}">Restaurar</button>` : ""}</li>`).join("")}</ul></details>` : "";
+  return activeMarkup + removedMarkup;
+}
+
+async function changeAttachment(button, remove) {
+  if (state.lookupBusy || !elements.saveLoading.hidden || button.disabled) return;
+  const recordId = Number(elements.form.elements.id.value);
+  const attachmentId = Number(remove ? button.dataset.removeAttachment : button.dataset.restoreAttachment);
+  if (!recordId || !attachmentId) return;
+  const name = button.closest(".document-item")?.querySelector("strong")?.textContent || "este documento";
+  if (remove && !window.confirm(`Excluir "${name}" deste projeto? O arquivo deixará de aparecer e poderá ser restaurado em Documentos removidos.`)) return;
+  setSaving(true);
+  try {
+    const { record } = await api(`/api/records/${recordId}/attachments/${attachmentId}${remove ? "" : "/restore"}`, {
+      method: remove ? "DELETE" : "POST", body: JSON.stringify({ revision: state.editingRevision })
+    });
+    state.editingRevision = record.revision;
+    renderExistingAttachment(record);
+    const removedList = elements.attachmentHistory.querySelector(".removed-documents");
+    if (removedList) removedList.open = true;
+    renderRecordHistory(record);
+    await refreshData();
+    showToast(remove ? "Documento removido. Você pode restaurá-lo neste registro." : "Documento restaurado.");
+  } catch (error) {
+    if ([409, 428].includes(error.status)) {
+      const warning = document.querySelector("#record-conflict");
+      warning.textContent = error.message;
+      warning.hidden = false;
+    }
+    showToast(error.message, "error");
+  } finally { setSaving(false); }
 }
 
 function renderPendingAttachments() {
@@ -1175,6 +1208,7 @@ function setSaving(saving) {
   elements.attachmentInput.disabled = saving;
   for (const button of [elements.previousStage, elements.nextStage, elements.stepProject, elements.stepFollowup]) button.disabled = saving;
   for (const button of elements.pendingAttachments.querySelectorAll("button")) button.disabled = saving;
+  for (const button of elements.attachmentHistory.querySelectorAll("button")) button.disabled = saving;
   elements.saveLabel.hidden = saving;
   elements.saveLoading.hidden = !saving;
 }
@@ -1525,6 +1559,11 @@ function setupEvents() {
   elements.stepFollowup.addEventListener("click", advanceToFollowup);
   elements.deleteRecord.addEventListener("click", deleteRecord);
   elements.attachmentInput.addEventListener("change", queueAttachments);
+  elements.attachmentHistory.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-attachment]");
+    const restore = event.target.closest("[data-restore-attachment]");
+    if (remove || restore) changeAttachment(remove || restore, Boolean(remove));
+  });
   elements.pendingAttachments.addEventListener("click", event => {
     const button = event.target.closest("[data-remove-pending]");
     if (!button || elements.attachmentInput.disabled) return;
@@ -1569,7 +1608,7 @@ function setupEvents() {
 async function init() {
   try {
     const health = await api("/api/health");
-    if (health.apiVersion !== 2) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
+    if (health.apiVersion !== 3) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
     state.parameters = await api("/api/parameters");
     setupEvents();
     setupParameters();
