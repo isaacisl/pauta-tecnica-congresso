@@ -1,6 +1,11 @@
 import { officialLinks } from "./official-links.js";
+import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
+import { initializeHistoryUI } from "./record-history.js?v=20261001-1";
 
 const state = {
+  editingRevision: null,
+  lookupPreviousIdentity: null,
+  detailsRequestId: 0,
   parameters: null,
   recordFilterOptions: null,
   totalFilterOptions: null,
@@ -256,10 +261,6 @@ function hasActiveFilters() {
   return currentFilters().size > 0;
 }
 
-function hasActiveTotalFilters() {
-  return currentTotalFilters().size > 0;
-}
-
 function countText(value) {
   return `${value} ${value === 1 ? "registro" : "registros"}`;
 }
@@ -302,6 +303,18 @@ function tramitationNoticeMarkup(record) {
   </section>`;
 }
 
+function monitoringMarkup(record) {
+  if (!record.monitoring?.length) return detailSection("Monitoramento", detailItem("Sem vínculo oficial", "Este registro não é monitorado. Edite e pesquise a matéria para vinculá-lo.", { wide: true }));
+  return detailSection("Monitoramento", record.monitoring.map(item => {
+    const stale = item.checkedAt && Date.now() - Date.parse(item.checkedAt) > 3 * 60 * 60 * 1000;
+    const warning = item.error || item.pending || stale;
+    const status = item.error ? "Não foi possível verificar. O sistema tentará novamente."
+      : item.pending ? "Primeira verificação pendente; ausência de aviso ainda não confirma ausência de novidades."
+      : stale ? "Verificação atrasada; os dados podem estar desatualizados." : "Verificação concluída.";
+    return detailItem(`${sourceLabel(item.source)} · ID ${item.externalId}`, `<span class="${warning ? "monitor-warning" : ""}">${escapeHtml(status)}</span><br><small>Última verificação: ${escapeHtml(item.checkedAt ? formatDateTime(item.checkedAt) : "ainda não realizada")}</small>`, { wide: true, html: true });
+  }).join(""), "Verifica movimentações; não substitui os campos salvos do projeto.");
+}
+
 function setDetailsTab(tab, focus = false) {
   const dialog = document.querySelector("#details-dialog");
   for (const name of ["project", "followup"]) {
@@ -318,9 +331,13 @@ function setDetailsTab(tab, focus = false) {
   dialog.querySelector(".details-body").scrollTop = 0;
 }
 
-function openRecordDetails(id) {
-  const record = state.records.find((item) => item.id === id);
-  if (!record) return;
+async function openRecordDetails(id) {
+  const requestId = ++state.detailsRequestId;
+  let record;
+  try { ({ record } = await api(`/api/records/${id}`)); }
+  catch (error) { showToast(error.message, "error"); return; }
+  if (requestId !== state.detailsRequestId) return;
+  state.records = state.records.map(item => item.id === id ? record : item);
   const proposition = record.proposition || record.camara;
   const links = officialLinks(record);
   const senatePage = links.find((link) => link.source === "senado");
@@ -329,6 +346,7 @@ function openRecordDetails(id) {
   const officialLinkMarkup = links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("");
   document.querySelector("#details-panel-project").innerHTML =
     tramitationNoticeMarkup(record) +
+    monitoringMarkup(record) +
     detailSection("Identificação", [
       detailItem("Projeto", record.projeto, { wide: true }),
       detailItem("Autor(es)", record.autor, { wide: true }),
@@ -355,7 +373,8 @@ function openRecordDetails(id) {
       detailItem("Posicionamento", statusChip(record.posicionamento), { wide: true, html: true })
     ].join("")) +
     detailSection("Documentos", record.attachments?.length ? detailItem(`Histórico de documentos (${record.attachments.length})`, attachmentHistoryMarkup(record), { wide: true, html: true }) : detailItem("Histórico de documentos", "Nenhum documento adicionado.", { wide: true })) +
-    detailSection("Histórico do acompanhamento", detailItem("Data de inclusão", formatDateTime(record.createdAt)) + (record.editedAt ? detailItem("Última edição", formatDateTime(record.editedAt)) : ""));
+    detailSection("Histórico do acompanhamento", detailItem("Data de inclusão", formatDateTime(record.createdAt)) + (record.editedAt ? detailItem("Última edição", formatDateTime(record.editedAt)) : "")
+      + detailItem("Alterações", '<button class="text-button" type="button" data-load-history>Ver histórico de alterações</button><div id="record-change-history"></div>', { wide: true, html: true }));
   setDetailsTab("project");
   dialog.showModal();
 }
@@ -496,7 +515,7 @@ async function refreshRecordsInBackground() {
   const requestId = state.requestId;
   try {
     const payload = await api(`/api/records${filterKey ? `?${filterKey}` : ""}`);
-    if (requestId !== state.requestId || filterKey !== currentFilters().toString()) return;
+    if (requestId !== state.requestId || filterKey !== currentFilters().toString() || document.querySelector("dialog[open]")) return;
     state.records = payload.records;
     renderRecords();
   } catch { /* A temporary refresh failure must not interrupt the user's work. */ }
@@ -865,6 +884,7 @@ function cancelLookup() {
 function resetLookup(record = null) {
   cancelLookup();
   state.proposition = record?.proposition || record?.camara || null;
+  state.lookupPreviousIdentity = state.proposition;
   state.lookupWarnings = [];
   state.propositionToken = "";
   state.searchToken = "";
@@ -885,6 +905,7 @@ function resetLookup(record = null) {
 
 function invalidateLookup() {
   cancelLookup();
+  if (state.proposition) state.lookupPreviousIdentity = state.proposition;
   if (!state.lookupPreviousProject) state.lookupPreviousProject = elements.form.elements.projeto.value;
   state.mustSearch = true;
   state.proposition = null;
@@ -914,20 +935,19 @@ async function selectProposition(id, version = state.lookupVersion) {
       signal: state.lookupController?.signal
     });
     if (version !== state.lookupVersion || !elements.dialog.open) return;
+    const previous = state.lookupPreviousIdentity;
+    const current = Object.fromEntries(["despacho", "atualComissao"].map(field => [field, elements.form.elements[field].value]));
+    const hasManual = sameMatter(previous, payload.proposition) && Object.keys(current).some(field => current[field] && current[field] !== (previous?.[field] || "") && current[field] !== (payload.proposition[field] || ""));
+    const replaceManual = hasManual && window.confirm("Despacho ou comissão possuem ajustes manuais. Substituir pelos dados desta consulta? Se cancelar, seus ajustes serão mantidos.");
     state.proposition = payload.proposition;
     state.propositionToken = payload.propositionToken;
     state.mustSearch = false;
-    const previousProject = state.lookupPreviousProject || elements.form.elements.projeto.value;
     elements.form.elements.projeto.value = payload.proposition.projeto;
     elements.form.elements.autor.value = payload.proposition.autor || "";
     elements.form.elements.ementa.value = payload.proposition.ementa;
     elements.projectFields.hidden = false;
-    for (const field of ["despacho", "atualComissao"]) {
-      const officialValue = payload.proposition[field] || "";
-      if (officialValue || (previousProject && previousProject !== payload.proposition.projeto)) {
-        elements.form.elements[field].value = officialValue;
-      }
-    }
+    for (const [field, value] of Object.entries(navigationValues(previous, payload.proposition, current, replaceManual))) elements.form.elements[field].value = value;
+    state.lookupPreviousIdentity = payload.proposition;
     elements.form.elements.ementa.readOnly = true;
     elements.form.elements.ementa.required = false;
     elements.propositionResults.hidden = true;
@@ -960,7 +980,9 @@ async function searchPropositions() {
   setLookupBusy(true);
   lookupMessage("Pesquisando na Câmara e no Senado…");
   try {
-    const payload = await api(`/api/propositions?${new URLSearchParams({ siglaTipo, numero, ano })}`, { signal: state.lookupController.signal });
+    const query = new URLSearchParams({ siglaTipo, numero, ano });
+    if (document.querySelector("#refresh-official").checked) query.set("refresh", "1");
+    const payload = await api(`/api/propositions?${query}`, { signal: state.lookupController.signal });
     if (version !== state.lookupVersion || !elements.dialog.open) return;
     state.searchToken = payload.searchToken;
     state.lookupWarnings = payload.warnings || [];
@@ -988,6 +1010,9 @@ async function searchPropositions() {
 }
 
 function openNewRecord() {
+  state.detailsRequestId++;
+  state.editingRevision = null;
+  document.querySelector("#record-conflict").hidden = true;
   state.pendingAttachments = [];
   renderPendingAttachments();
   elements.form.reset();
@@ -1005,13 +1030,13 @@ function openNewRecord() {
   requestAnimationFrame(() => elements.searchType.focus());
 }
 
-function openEditRecord(id, step = "project") {
-  const record = state.records.find((item) => item.id === id);
-  if (!record) {
-    showToast("O registro não está mais disponível.", "error");
-    loadRecords();
-    return;
-  }
+async function openEditRecord(id, step = "project") {
+  let record;
+  try { ({ record } = await api(`/api/records/${id}`)); }
+  catch (error) { showToast(error.message, "error"); return; }
+  state.editingRevision = record.revision;
+  document.querySelector("#record-conflict").hidden = true;
+  document.querySelector("#refresh-official").checked = false;
 
   clearFieldErrors();
   state.pendingAttachments = [];
@@ -1079,10 +1104,13 @@ function formPayload() {
   const payload = {};
   for (const [, field] of labels) payload[field] = String(formData.get(field) ?? "").trim();
   if (state.propositionToken) payload.propositionToken = state.propositionToken;
+  if (state.editingRevision !== null) payload.revision = state.editingRevision;
   return payload;
 }
 
 function setSaving(saving) {
+  for (const [, field] of labels) elements.form.elements[field].disabled = saving;
+  document.querySelector("#refresh-official").disabled = saving || state.lookupBusy;
   elements.saveRecord.disabled = saving || state.lookupBusy;
   elements.searchProposition.disabled = saving || state.lookupBusy;
   for (const input of [elements.searchType, elements.searchNumber, elements.searchYear]) input.disabled = saving;
@@ -1125,14 +1153,16 @@ async function saveRecord(event) {
 
   const id = elements.form.elements.id.value;
   let savedRecord = null;
+  const payload = formPayload();
   setSaving(true);
   try {
     const result = await api(id ? `/api/records/${id}` : "/api/records", {
       method: id ? "PUT" : "POST",
-      body: JSON.stringify(formPayload())
+      body: JSON.stringify(payload)
     });
     elements.form.elements.id.value = result.record.id;
     savedRecord = result.record;
+    state.editingRevision = savedRecord.revision;
     state.propositionToken = "";
     state.proposition = result.record.proposition || result.record.camara;
     if (!id) {
@@ -1144,6 +1174,7 @@ async function saveRecord(event) {
     while (state.pendingAttachments.length) {
       const item = state.pendingAttachments[0];
       savedRecord = await uploadAttachment(result.record.id, item.file, item.uploadKey);
+      state.editingRevision = savedRecord.revision;
       state.pendingAttachments.shift();
       renderExistingAttachment(savedRecord);
       renderPendingAttachments();
@@ -1154,6 +1185,12 @@ async function saveRecord(event) {
     showToast(id ? "Registro atualizado com sucesso." : "Registro adicionado com sucesso.");
     await refreshData();
   } catch (error) {
+    if (!savedRecord && [409, 428].includes(error.status)) {
+      const warning = document.querySelector("#record-conflict");
+      warning.textContent = error.message;
+      warning.hidden = false;
+      warning.scrollIntoView({ block: "center" });
+    }
     if (error.fields) showFieldErrors(error.fields);
     else showToast(savedRecord ? `O registro foi salvo. ${error.message} Os documentos pendentes continuam selecionados; clique em Salvar para tentar novamente.` : error.message, "error");
     if (savedRecord) {
@@ -1170,14 +1207,14 @@ async function deleteRecord() {
   const id = elements.form.elements.id.value;
   if (!id) return;
   const project = elements.form.elements.projeto.value;
-  if (!window.confirm(`Excluir o registro "${project}"? Esta ação não pode ser desfeita.`)) return;
+  if (!window.confirm(`Mover o registro "${project}" para a lixeira? Os documentos serão preservados e o registro poderá ser restaurado.`)) return;
 
   setSaving(true);
   try {
-    await api(`/api/records/${id}`, { method: "DELETE" });
+    await api(`/api/records/${id}`, { method: "DELETE", body: JSON.stringify({ revision: state.editingRevision }) });
     elements.dialog.close();
     state.recordFormBaseline = "";
-    showToast("Registro excluído.");
+    showToast("Registro movido para a lixeira.");
     await refreshData();
   } catch (error) {
     showToast(error.message, "error");
@@ -1203,7 +1240,7 @@ function openExportDialog() {
   elements.exportPassword.classList.remove("is-invalid");
   elements.exportPasswordError.textContent = "";
   const filtered = hasActiveFilters();
-  const count = filtered ? state.records.length : (state.totals?.total ?? state.records.length);
+  const count = state.records.length;
   elements.exportScope.textContent = filtered
     ? `A exportação incluirá ${countText(count)} correspondentes aos filtros atuais.`
     : `A exportação incluirá a base completa com ${countText(count)}.`;
@@ -1350,6 +1387,7 @@ function setupEvents() {
   elements.newRecordButton.addEventListener("click", openNewRecord);
   elements.totalsNewButton.addEventListener("click", openNewRecord);
   elements.exportButton.addEventListener("click", openExportDialog);
+  initializeHistoryUI({ api, escapeHtml, formatDateTime, showToast, refreshData, labels });
 
   elements.recordsBody.addEventListener("click", (event) => {
     const details = event.target.closest("[data-details-id]");
@@ -1357,7 +1395,7 @@ function setupEvents() {
   });
 
   const detailsDialog = document.querySelector("#details-dialog");
-  document.querySelector("#close-details").addEventListener("click", () => detailsDialog.close());
+  document.querySelector("#close-details").addEventListener("click", () => { state.detailsRequestId++; detailsDialog.close(); });
   closeOnBackdropClick(detailsDialog, () => detailsDialog.close());
   detailsDialog.querySelector(".record-tabs").addEventListener("click", (event) => {
     const button = event.target.closest("[data-details-tab]");
@@ -1451,9 +1489,11 @@ function setupEvents() {
 }
 
 async function init() {
-  setupEvents();
   try {
+    const health = await api("/api/health");
+    if (health.apiVersion !== 2) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
     state.parameters = await api("/api/parameters");
+    setupEvents();
     elements.searchType.innerHTML = '<option value="">Selecione o tipo</option>' + state.parameters.propositionTypes.map(([type, name]) => `<option value="${escapeHtml(type)}">${escapeHtml(type)} — ${escapeHtml(name)}</option>`).join("");
     setupParameters();
     await Promise.all([loadRecords({ showLoading: true }), loadTotals()]);
@@ -1461,6 +1501,10 @@ async function init() {
     window.setInterval(refreshRecordsInBackground, 60 * 1000);
   } catch (error) {
     elements.tableLoading.hidden = true;
+    const warning = document.querySelector("#system-warning");
+    warning.textContent = error.message;
+    warning.hidden = false;
+    for (const control of document.querySelectorAll("button, input, select")) control.disabled = true;
     showToast(error.message, "error");
   }
 }

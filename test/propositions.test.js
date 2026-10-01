@@ -81,7 +81,7 @@ test("PL 3361/2025 resolve para PL 7108/2017; IDs ficam separados e cache persis
     const otherArea = database.create({ ...input, areaTecnica: "Finanças" });
     assert.equal(otherArea.matterId, saved.matterId);
     assert.equal(database.list().length, 2);
-    assert.equal(database.update(saved.id, input).id, saved.id);
+    assert.equal(database.update(saved.id, { ...input, revision: saved.revision }).id, saved.id);
   } finally { database.close(); }
 });
 

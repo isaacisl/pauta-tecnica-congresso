@@ -28,6 +28,7 @@ before(async () => {
   temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "pauta-tecnica-test-"));
   app = await startServer({
     port: 0,
+    tramitationCheckDelayMs: null,
     hostname: "127.0.0.1",
     databasePath: path.join(temporaryDirectory, "test.sqlite"),
     senadoFetch: async () => Response.json([]),
@@ -122,7 +123,7 @@ test("valida, cria, filtra e edita registros", async () => {
   const responsibleOptions = await (await request(`/api/filter-options?responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}`)).json();
   assert.deepEqual(responsibleOptions.areasTecnicas, ["Educação"]);
 
-  await request(`/api/records/${secondCreated.id}`, { method: "DELETE" });
+  await request(`/api/records/${secondCreated.id}`, { method: "DELETE", body: JSON.stringify({ revision: secondCreated.revision }) });
 
   const filteredResponse = await request(`/api/records?areaTecnica=${encodeURIComponent("Educação")}&responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}&haParecer=${encodeURIComponent("Em andamento")}`);
   const filtered = await filteredResponse.json();
@@ -132,7 +133,7 @@ test("valida, cria, filtra e edita registros", async () => {
   const updateResponse = await request(`/api/records/${created.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...sampleRecord, haParecer: "Sim" })
+    body: JSON.stringify({ ...sampleRecord, revision: created.revision, haParecer: "Sim" })
   });
   const updated = (await updateResponse.json()).record;
   assert.equal(updated.haParecer, "Sim");
@@ -169,9 +170,9 @@ test("totaliza e exporta a base em CSV compatível com Excel", async () => {
     body: JSON.stringify({ password: "CentralDeDados2026" })
   });
   const bytes = Buffer.from(await exportResponse.arrayBuffer());
-  const csv = new TextDecoder("windows-1252").decode(bytes);
+  const csv = new TextDecoder("utf-8").decode(bytes);
   assert.equal(exportResponse.status, 200);
-  assert.match(exportResponse.headers.get("content-type"), /charset=windows-1252/);
+  assert.match(exportResponse.headers.get("content-type"), /charset=utf-8/);
   assert.match(exportResponse.headers.get("content-disposition"), /registros-areas-tecnicas-/);
   assert.match(csv, /sep=;/);
   assert.match(csv, /PL 1234\/2026/);
@@ -180,7 +181,7 @@ test("totaliza e exporta a base em CSV compatível com Excel", async () => {
   assert.match(csv, /Área Técnica/);
   assert.match(csv, /"Despacho";"Atual comissão"/);
   assert.match(csv, /À Comissão de Educação/);
-  assert.notEqual(bytes.indexOf(Buffer.from([0xc1, 0x72, 0x65, 0x61])), -1);
+  assert.deepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
 });
 
 test("acrescenta documentos ao histórico, preserva downloads e evita duplicação em novas tentativas", async () => {
@@ -244,7 +245,7 @@ test("acrescenta documentos ao histórico, preserva downloads e evita duplicaç�
 test("exclui um registro existente", async () => {
   const listResponse = await request("/api/records");
   const [record] = (await listResponse.json()).records;
-  const deleteResponse = await request(`/api/records/${record.id}`, { method: "DELETE" });
+  const deleteResponse = await request(`/api/records/${record.id}`, { method: "DELETE", body: JSON.stringify({ revision: record.revision }) });
   assert.equal(deleteResponse.status, 200);
 
   const attachmentResponse = await request(`/api/records/${record.id}/attachment`);

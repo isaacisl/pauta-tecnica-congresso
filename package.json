@@ -8,7 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check lib/database.js && node --check lib/camara.js && node --check lib/senado.js && node --check lib/propositions.js && node --check lib/tramitations.js && node --check public/app.js && node --check public/official-links.js"
+    "backup": "node scripts/backup.js",
+    "check": "node --check server.js && node --check lib/database.js && node --check lib/camara.js && node --check lib/senado.js && node --check lib/propositions.js && node --check lib/tramitations.js && node --check public/app.js && node --check public/official-links.js && node --check public/record-utils.js && node --check public/record-history.js && node --check scripts/backup.js"
   },
   "engines": {
     "node": ">=22.5"

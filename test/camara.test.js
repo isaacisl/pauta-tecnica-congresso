@@ -90,7 +90,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     if (url.pathname.endsWith("/autores")) return Response.json({ dados: [{ nome: "Autora Oficial", tipo: "Deputado(a)", ordemAssinatura: 1 }] });
     return Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? [official] : official });
   };
-  let app = await startServer({ port: 0, databasePath, camaraFetch, senadoFetch: async () => Response.json([]) });
+  let app = await startServer({ port: 0, databasePath, tramitationCheckDelayMs: null, camaraFetch, senadoFetch: async () => Response.json([]) });
   const request = (endpoint, body, method = "POST") => fetch(`${app.url}${endpoint}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   try {
     await fetch(`${app.url}/api/parameters`);
@@ -108,7 +108,7 @@ test("API bloqueia cadastro manual e conserva o vínculo e datas após edição 
     assert.equal(saved.atualComissao, fields.atualComissao);
     assert.equal(calls, 4);
     await app.close();
-    app = await startServer({ port: 0, databasePath, camaraFetch, senadoFetch: async () => Response.json([]) });
+    app = await startServer({ port: 0, databasePath, tramitationCheckDelayMs: null, camaraFetch, senadoFetch: async () => Response.json([]) });
     const updatedResponse = await request(`/api/records/${saved.id}`, { ...saved, haParecer: "Não", ementa: "Tentativa de trocar", camara: { id: 123 } }, "PUT");
     assert.equal(updatedResponse.status, 200);
     const updated = (await updatedResponse.json()).record;
@@ -146,7 +146,7 @@ test("migração preserva registros antigos e seus metadados de anexos", async (
     assert.equal(migrated.attachmentName, "documento.pdf");
     assert.equal(migrated.camara, null);
     const client = createCamaraClient(() => { throw new Error("Não deve consultar"); });
-    const edited = db.update(legacy.id, client.recordInput({ ...fields, atualComissao: "Nova comissão" }, migrated));
+    const edited = db.update(legacy.id, { ...client.recordInput({ ...fields, atualComissao: "Nova comissão" }, migrated), revision: migrated.revision });
     assert.equal(edited.atualComissao, "Nova comissão");
     assert.equal(edited.attachmentName, "documento.pdf");
     assert.equal(edited.createdAt, legacy.createdAt);

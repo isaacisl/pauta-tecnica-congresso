@@ -3,5 +3,6 @@ data/*.sqlite
 data/*.sqlite-shm
 data/*.sqlite-wal
 data/uploads/
+data/backups/
 .tmp-workbook-inspection/
 *.log

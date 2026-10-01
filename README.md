@@ -2,6 +2,35 @@
 
 Aplicativo web local para cadastrar e acompanhar projetos prioritários por área técnica. Os dados ficam em uma base SQLite no próprio computador.
 
+## Consolidação de confiabilidade — outubro/2026
+
+- **Edição concorrente:** registros possuem `revision`. PUT e DELETE exigem a versão aberta pelo usuário (428 se ausente, 409 se desatualizada). O formulário preserva o preenchimento em caso de conflito. Reabra o registro para conferir a versão atual antes de tentar novamente. Envios de documentos também avançam a versão.
+- **Lixeira:** excluir agora oculta o acompanhamento da lista, filtros, totais e monitoramento, sem apagar seus documentos. O botão Lixeira permite restaurá-lo. A restauração bloqueia uma duplicidade ativa de matéria + área + responsável. Não há purga automática.
+- **Histórico:** a aba Acompanhamento oferece o histórico de inclusão, edição, exclusão e restauração, com antes/depois dos campos. Não se reconstroem alterações anteriores à implantação e, sem login, não se atribui uma pessoa à operação. Documentos mantêm seu histórico próprio.
+- **Pesquisa:** o leitor do Senado reconhece também `siglaColegiadoControleAtual`. Na consolidação das Casas, a navegação utiliza a origem **e o ID** da situação vencedora. Homônimos não herdam despacho/comissão de outra matéria.
+- **Atualização explícita:** marque “Consultar dados atualizados nas APIs (ignorar cache)” antes de pesquisar. O sistema consulta novamente as fontes, sem atualizar outros acompanhamentos silenciosamente. Ajustes manuais de despacho/comissão exigem confirmação para substituição na mesma matéria.
+- **Monitoramento:** os detalhes mostram a última consulta bem-sucedida, primeira verificação pendente, atraso e falha. Um novo vínculo solicita uma verificação próxima ao cadastro; eventos inequivocamente posteriores ao início do acompanhamento não são descartados quando a primeira consulta demora. Datas oficiais sem horário não permitem determinar a ordem dentro do mesmo dia. Registros antigos sem referência inicial continuam usando a primeira consulta como linha de base.
+- **Correções de eventos:** Câmara usa a sequência oficial no contexto da proposição; Senado usa o ID do informe. Correções atualizam o texto armazenado sem gerar uma segunda notificação. A migração reconhece o hash antigo da Câmara quando o conteúdo coincide, preservando o ID interno e a leitura. Se a fonte alterar o conteúdo antes dessa primeira conversão, pode haver um aviso adicional na transição; não são apagados avisos antigos.
+- **Exportação:** CSV em UTF-8 com BOM para Excel, preservando Unicode e neutralizando células que poderiam virar fórmulas. A senha de exportação continua configurável por `EXPORT_PASSWORD`, com o padrão anterior mantido por compatibilidade. Essa senha protege a exportação, **não** as demais rotas.
+
+Antes de atualizar o servidor, faça backup. Depois do `git pull`, reinicie o serviço NSSM e recarregue os navegadores: formulários de versões antigas não podem sobrescrever registros sem controle de revisão. As migrações são aditivas e preservam registros e anexos; não volte a executar uma versão antiga do servidor sobre a base migrada, pois versões antigas não reconhecem a lixeira.
+
+### Backup e recuperação
+
+```powershell
+npm run backup
+# Opcional: informar uma pasta de destino protegida
+npm run backup -- D:\Backups\PautaTecnica
+```
+
+O comando usa `DATABASE_PATH` quando configurado. Cria um snapshot consistente do SQLite (incluindo transações confirmadas no WAL) e copia todos os documentos referenciados, inclusive da lixeira. O padrão é `data/backups/`, ignorado pelo Git. Só considere completo um diretório com `backup-completo.json`; falta de documento ou falha de integridade interrompe o processo. Copie os backups também para um local protegido fora do disco do servidor e estabeleça retenção conforme a política da empresa.
+
+Para restaurar, pare o serviço, preserve a instalação atual inteira e use o `registros.sqlite` e a pasta `uploads` do mesmo backup em um diretório novo. Aponte `DATABASE_PATH` para esse arquivo e inicie o serviço atualizado. Não misture o snapshot restaurado com arquivos `-wal`/`-shm` de outra base. O teste automatizado de backup verifica reabertura, histórico, lixeira e documentos; também teste a recuperação na infraestrutura do servidor.
+
+### Limites mantidos deliberadamente
+
+Não foram adicionados login, permissões por pessoa ou exclusão automática de registros de teste. O serviço deve permanecer restrito a uma rede confiável/VPN ou a um controle de acesso externo. Proteja a pasta de backups: ela contém toda a base. A paginação continua no navegador; otimização para grandes bases e revisão dos registros sem vínculo oficial são etapas separadas. Não se unem registros antigos apenas por coincidência de nome.
+
 ## Como executar
 
 Requisito: Node.js 22.5 ou mais recente.
@@ -32,9 +61,9 @@ Na totalização, **projetos distintos** usa o ID interno da matéria legislativ
 
 ## Persistência
 
-A base é criada automaticamente em `data/registros.sqlite`, e os anexos ficam em `data/uploads/`. Ambos são ignorados pelo Git: atualizações de código não substituem esses dados. Para um backup completo, preserve o arquivo SQLite e a pasta de uploads.
+A base é criada automaticamente em `data/registros.sqlite`, e os anexos ficam em `data/uploads/`. Ambos são ignorados pelo Git: atualizações de código não substituem esses dados. Para um backup completo e consistente, use `npm run backup`, conforme a seção de recuperação acima.
 
-O campo de documentos fica abaixo de “Há parecer elaborado?”. É possível selecionar vários arquivos (até 20 MB cada), na criação ou na edição. Ao salvar, cada arquivo é acrescentado ao histórico com sua própria data, sem substituir documentos anteriores, mesmo com nomes iguais. O histórico aparece na edição e nos detalhes. Arquivos pendentes podem ser retirados da seleção; documentos já salvos permanecem no histórico. A exclusão do registro também exclui seus documentos.
+O campo de documentos fica abaixo de “Há parecer elaborado?”. É possível selecionar vários arquivos (até 20 MB cada), na criação ou na edição. Ao salvar, cada arquivo é acrescentado ao histórico com sua própria data, sem substituir documentos anteriores, mesmo com nomes iguais. O histórico aparece na edição e nos detalhes. Arquivos pendentes podem ser retirados da seleção; documentos já salvos permanecem no histórico. Ao excluir o registro, seus documentos permanecem preservados na lixeira e voltam a ficar disponíveis após a restauração.
 
 Os metadados ficam em `record_attachments`. Na primeira inicialização desta versão, os anexos antigos são migrados automaticamente, mantendo os arquivos em seus locais originais. Como a versão anterior não registrava a data de envio separadamente, esses arquivos mostram “Data de inclusão não registrada”. Os novos documentos recebem a data do servidor. Envios interrompidos podem ser repetidos no mesmo formulário sem duplicar um arquivo já recebido.
 

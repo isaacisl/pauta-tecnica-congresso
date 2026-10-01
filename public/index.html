@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20260930-4" />
+    <link rel="stylesheet" href="/styles.css?v=20261001-1" />
   </head>
   <body>
     <header class="app-header">
@@ -39,6 +39,7 @@
     </header>
 
     <main class="page-shell">
+      <p id="system-warning" class="record-warning" role="alert" hidden></p>
       <section id="records-view" class="view" aria-labelledby="records-title">
         <div class="page-heading">
           <div>
@@ -51,6 +52,7 @@
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3" /></svg>
               Exportar base
             </button>
+            <button id="open-trash" class="text-button" type="button">Lixeira</button>
             <button id="new-record-button" class="button button-primary" type="button">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
               Novo registro
@@ -281,6 +283,13 @@
     </main>
     <footer class="institutional-footer"><span>CNM · Confederação Nacional de Municípios</span><span>Município forte. Brasil forte.</span></footer>
 
+    <dialog id="trash-dialog" class="record-dialog details-dialog" aria-labelledby="trash-title">
+      <div class="details-layout">
+        <div class="dialog-header"><div><h2 id="trash-title">Lixeira</h2><p>Registros e documentos preservados para restauração.</p></div><button id="close-trash" class="icon-button" type="button" aria-label="Fechar lixeira">✕</button></div>
+        <div id="trash-records" class="dialog-body"></div>
+      </div>
+    </dialog>
+
     <dialog id="details-dialog" class="record-dialog details-dialog" aria-labelledby="details-title">
       <div class="details-layout">
         <div class="dialog-header">
@@ -320,6 +329,7 @@
 
         <div class="dialog-body">
           <input id="record-id" name="id" type="hidden" />
+          <p id="record-conflict" class="record-warning" role="alert" hidden></p>
           <section id="form-stage-project" class="form-stage" aria-labelledby="form-project-title">
             <div class="stage-heading"><span class="section-kicker">Etapa 1 de 2</span><h3 id="form-project-title">Dados do projeto</h3><p>Localize a matéria e confira as informações de tramitação.</p></div>
           <div class="form-grid">
@@ -333,6 +343,7 @@
                 <button id="search-proposition" class="button button-primary" type="button">Pesquisar</button>
               </div>
               <p id="proposition-search-status" role="status" aria-live="polite"></p>
+              <label class="refresh-official"><input id="refresh-official" type="checkbox" /> Consultar dados atualizados nas APIs (ignorar cache)</label>
               <div id="proposition-status-preview" hidden></div>
               <div id="proposition-results" class="proposition-results" hidden></div>
             </section>
@@ -498,6 +509,7 @@
             <small id="export-password-error" class="field-error"></small>
           </label>
           <p id="export-scope" class="export-scope"></p>
+          <p class="export-scope">A planilha não inclui documentos ou histórico e não substitui um backup.</p>
         </div>
         <div class="dialog-footer">
           <span class="footer-spacer"></span>
@@ -517,6 +529,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20260930-4"></script>
+    <script type="module" src="/app.js?v=20261001-1"></script>
   </body>
 </html>

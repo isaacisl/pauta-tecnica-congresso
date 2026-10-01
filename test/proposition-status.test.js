@@ -154,7 +154,7 @@ test("relação oficial posterior une identidades antes separadas sem apagar reg
       assert.equal(database.get(record.id).editedAt, record.editedAt);
     }
     assert.throws(() => database.create(saved[1]), (error) => error.status === 409);
-    assert.equal(database.update(saved[1].id, { ...saved[1], haParecer: "Não" }).haParecer, "Não");
+    assert.equal(database.update(saved[1].id, { ...database.get(saved[1].id), haParecer: "Não" }).haParecer, "Não");
   } finally { database.close(); }
 });
 
@@ -162,7 +162,7 @@ test("rotas aceitam Senado, preservam situação após reinício e recusam snaps
   const directory = await mkdtemp(path.join(os.tmpdir(), "pauta-status-http-"));
   const databasePath = path.join(directory, "records.sqlite");
   const p = providers({ cameraFound: false });
-  let app = await startServer({ port: 0, databasePath, ...p });
+  let app = await startServer({ port: 0, databasePath, tramitationCheckDelayMs: null, ...p });
   const request = (endpoint, body, method = "POST") => fetch(`${app.url}${endpoint}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   try {
     const search = await (await fetch(`${app.url}/api/propositions?${query()}`)).json();
@@ -172,7 +172,7 @@ test("rotas aceitam Senado, preservam situação após reinício e recusam snaps
     const saved = (await response.json()).record;
     const before = p.calls.length;
     await app.close();
-    app = await startServer({ port: 0, databasePath, ...p });
+    app = await startServer({ port: 0, databasePath, tramitationCheckDelayMs: null, ...p });
     const edit = await request(`/api/records/${saved.id}`, { ...saved, atualComissao: "Nova comissão", proposition: { latestStatus: { descricao: "Forjada" } } }, "PUT");
     assert.equal(edit.status, 200);
     assert.deepEqual((await edit.json()).record.proposition, saved.proposition);
