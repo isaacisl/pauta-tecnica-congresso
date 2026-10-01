@@ -814,6 +814,12 @@ h3 {
   overflow: hidden;
 }
 
+.records-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 8px 0;
+}
+
 .table-heading {
   padding: 20px 22px 17px;
   border-bottom: 1px solid var(--line);
