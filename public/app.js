@@ -1067,7 +1067,6 @@ async function searchPropositions() {
   lookupMessage("Pesquisando na Câmara e no Senado…");
   try {
     const query = new URLSearchParams({ siglaTipo, numero, ano });
-    if (document.querySelector("#refresh-official").checked) query.set("refresh", "1");
     const payload = await api(`/api/propositions?${query}`, { signal: state.lookupController.signal });
     if (version !== state.lookupVersion || !elements.dialog.open) return;
     state.searchToken = payload.searchToken;
@@ -1122,7 +1121,6 @@ async function openEditRecord(id, step = "project") {
   catch (error) { showToast(error.message, "error"); return; }
   state.editingRevision = record.revision;
   document.querySelector("#record-conflict").hidden = true;
-  document.querySelector("#refresh-official").checked = false;
 
   clearFieldErrors();
   state.pendingAttachments = [];
@@ -1196,7 +1194,6 @@ function formPayload() {
 
 function setSaving(saving) {
   for (const [, field] of labels) elements.form.elements[field].disabled = saving;
-  document.querySelector("#refresh-official").disabled = saving || state.lookupBusy;
   elements.saveRecord.disabled = saving || state.lookupBusy;
   elements.searchProposition.disabled = saving || state.lookupBusy;
   for (const input of [elements.searchType, elements.searchNumber, elements.searchYear]) input.disabled = saving;

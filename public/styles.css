@@ -1236,8 +1236,6 @@ td:nth-child(2) .cell-truncate {
 
 .monitor-warning { color: #9a4a08; font-weight: 600; }
 .record-warning { color: #843700; background: #fff4e5; border: 1px solid #edc590; border-radius: 10px; padding: 12px 16px; }
-.refresh-official { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; margin: 10px 0; }
-.refresh-official input { flex: 0 0 auto; width: auto; margin-top: 3px; }
 .recovery-item { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 0; border-bottom: 1px solid #d9e4ee; }
 .recovery-item > div { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
 .recovery-item p { margin: 6px 0; }
