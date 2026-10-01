@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDatabase, ValidationError } from "./lib/database.js";
 import { parameters } from "./lib/parameters.js";
-import { propositionTypes } from "./lib/camara.js";
+import { propositionTypes } from "./lib/proposition-types.js";
 import { createPropositionService } from "./lib/propositions.js";
 import { createTramitationMonitor } from "./lib/tramitations.js";
 

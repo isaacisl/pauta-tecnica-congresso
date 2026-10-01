@@ -1,6 +1,7 @@
 import { officialLinks } from "./official-links.js";
 import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
 import { initializeHistoryUI } from "./record-history.js?v=20261001-1";
+import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 
 const state = {
   editingRevision: null,
@@ -87,6 +88,7 @@ const elements = {
   previousStage: document.querySelector("#previous-stage"),
   nextStage: document.querySelector("#next-stage"),
   searchType: document.querySelector("#search-type"),
+  searchTypeOptions: document.querySelector("#search-type-options"),
   searchNumber: document.querySelector("#search-number"),
   searchYear: document.querySelector("#search-year"),
   searchProposition: document.querySelector("#search-proposition"),
@@ -881,6 +883,50 @@ function cancelLookup() {
   setLookupBusy(false);
 }
 
+let activeTypeOption = -1;
+
+function hideTypeOptions() {
+  elements.searchTypeOptions.hidden = true;
+  elements.searchType.setAttribute("aria-expanded", "false");
+  elements.searchType.removeAttribute("aria-activedescendant");
+  activeTypeOption = -1;
+}
+
+function renderTypeOptions() {
+  const prefix = elements.searchType.value.trim().toLocaleUpperCase("pt-BR");
+  if (!prefix || elements.searchType.disabled) { hideTypeOptions(); return; }
+  const matches = matchingPropositionTypes(state.parameters.propositionTypes, prefix);
+  elements.searchTypeOptions.innerHTML = matches.length
+    ? matches.map(([code, name], index) => `<button class="type-option" id="type-option-${index}" type="button" role="option" aria-selected="false" data-type="${escapeHtml(code)}"><strong>${escapeHtml(code)}</strong><span>${escapeHtml(name)}</span></button>`).join("")
+    : '<span class="type-option-empty">Nenhuma sigla encontrada. Confira o tipo digitado.</span>';
+  elements.searchTypeOptions.hidden = false;
+  elements.searchType.setAttribute("aria-expanded", "true");
+  activeTypeOption = -1;
+  elements.searchType.removeAttribute("aria-activedescendant");
+}
+
+function moveTypeOption(direction) {
+  const options = [...elements.searchTypeOptions.querySelectorAll("[data-type]")];
+  if (!options.length) return;
+  activeTypeOption = (activeTypeOption + direction + options.length) % options.length;
+  options.forEach((option, index) => {
+    const active = index === activeTypeOption;
+    option.classList.toggle("is-active", active);
+    option.setAttribute("aria-selected", String(active));
+  });
+  elements.searchType.setAttribute("aria-activedescendant", options[activeTypeOption].id);
+  options[activeTypeOption].scrollIntoView({ block: "nearest" });
+}
+
+function chooseTypeOption(code) {
+  if (elements.searchType.value !== code) {
+    elements.searchType.value = code;
+    invalidateLookup();
+  }
+  hideTypeOptions();
+  elements.searchType.focus();
+}
+
 function resetLookup(record = null) {
   cancelLookup();
   state.proposition = record?.proposition || record?.camara || null;
@@ -892,6 +938,7 @@ function resetLookup(record = null) {
   state.mustSearch = !record;
   elements.projectFields.hidden = !record;
   elements.searchType.value = state.proposition?.siglaTipo || "";
+  hideTypeOptions();
   elements.searchNumber.value = state.proposition?.numero || "";
   elements.searchYear.value = state.proposition?.ano || "";
   elements.propositionResults.innerHTML = "";
@@ -967,13 +1014,21 @@ async function selectProposition(id, version = state.lookupVersion) {
 
 async function searchPropositions() {
   if (state.lookupBusy || elements.saveLoading.hidden === false) return;
-  const siglaTipo = elements.searchType.value;
+  const siglaTipo = elements.searchType.value.trim().toLocaleUpperCase("pt-BR");
   const numero = elements.searchNumber.value.trim();
   const ano = elements.searchYear.value.trim();
-  if (!siglaTipo || !/^\d{1,9}$/.test(numero) || Number(numero) < 1 || !/^\d{4}$/.test(ano) || Number(ano) < 1000) {
-    lookupMessage("Selecione o tipo e informe um número positivo e um ano com 4 dígitos.", true);
+  if (!state.parameters.propositionTypes.some(([code]) => code === siglaTipo)) {
+    lookupMessage("Escolha uma sigla válida da lista de tipos de proposição.", true);
+    elements.searchType.focus();
+    renderTypeOptions();
     return;
   }
+  if (!/^\d{1,9}$/.test(numero) || Number(numero) < 1 || !/^\d{4}$/.test(ano) || Number(ano) < 1000) {
+    lookupMessage("Informe um número positivo e um ano com 4 dígitos.", true);
+    return;
+  }
+  elements.searchType.value = siglaTipo;
+  hideTypeOptions();
   invalidateLookup();
   const version = state.lookupVersion;
   state.lookupController = new AbortController();
@@ -1338,10 +1393,33 @@ function closeOnBackdropClick(dialog, closeHandler) {
 
 function setupEvents() {
   elements.searchProposition.addEventListener("click", searchPropositions);
-  elements.searchType.addEventListener("change", invalidateLookup);
+  elements.searchType.addEventListener("input", () => {
+    elements.searchType.value = elements.searchType.value.toLocaleUpperCase("pt-BR");
+    invalidateLookup();
+    renderTypeOptions();
+  });
+  elements.searchType.addEventListener("focus", renderTypeOptions);
+  elements.searchType.addEventListener("blur", () => window.setTimeout(hideTypeOptions, 100));
+  elements.searchType.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (elements.searchTypeOptions.hidden) renderTypeOptions();
+      moveTypeOption(event.key === "ArrowDown" ? 1 : -1);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const selected = elements.searchTypeOptions.querySelectorAll("[data-type]")[activeTypeOption];
+      if (!elements.searchTypeOptions.hidden && selected) chooseTypeOption(selected.dataset.type);
+      else elements.searchProposition.focus();
+    } else if (event.key === "Escape") hideTypeOptions();
+  });
+  elements.searchTypeOptions.addEventListener("pointerdown", (event) => event.preventDefault());
+  elements.searchTypeOptions.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-type]");
+    if (option) chooseTypeOption(option.dataset.type);
+  });
   elements.searchNumber.addEventListener("input", invalidateLookup);
   elements.searchYear.addEventListener("input", invalidateLookup);
-  for (const input of [elements.searchType, elements.searchNumber, elements.searchYear]) {
+  for (const input of [elements.searchNumber, elements.searchYear]) {
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") { event.preventDefault(); elements.searchProposition.focus(); }
     });
@@ -1494,7 +1572,6 @@ async function init() {
     if (health.apiVersion !== 2) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
     state.parameters = await api("/api/parameters");
     setupEvents();
-    elements.searchType.innerHTML = '<option value="">Selecione o tipo</option>' + state.parameters.propositionTypes.map(([type, name]) => `<option value="${escapeHtml(type)}">${escapeHtml(type)} — ${escapeHtml(name)}</option>`).join("");
     setupParameters();
     await Promise.all([loadRecords({ showLoading: true }), loadTotals()]);
     showView(window.location.hash === "#totalizacao" ? "totals" : "records");

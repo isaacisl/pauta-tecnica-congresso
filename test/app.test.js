@@ -61,6 +61,7 @@ test("disponibiliza os parâmetros extraídos da planilha", async () => {
   assert.equal(payload.areasTecnicas.length, 22);
   assert.equal(payload.responsaveis.length, 80);
   assert.deepEqual(payload.pareceres, ["Sim", "Não", "Em andamento"]);
+  assert.ok(payload.propositionTypes.some(([code]) => code === "PRLP(V)"));
 
   const emptyFilterOptions = await (await request("/api/filter-options")).json();
   assert.deepEqual(emptyFilterOptions.areasTecnicas, []);

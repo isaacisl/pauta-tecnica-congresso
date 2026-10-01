@@ -1738,6 +1738,14 @@ td:nth-child(2) .cell-truncate {
 .proposition-search p { margin: 6px 0 12px; color: var(--muted); font-size: 12px; }
 .proposition-search-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
 .proposition-search-fields .field { min-width: 0; }
+.type-combobox { position: relative; display: block; min-width: 0; }
+.type-options { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow-md); }
+.type-options[hidden] { display: none; }
+.type-option { display: flex; width: 100%; gap: 10px; align-items: baseline; padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.type-option strong { min-width: 55px; color: var(--brand); font-size: 12px; }
+.type-option span { font-size: 12px; font-weight: 450; }
+.type-option:hover, .type-option.is-active { background: var(--brand-soft); }
+.type-option-empty { padding: 9px 10px; color: var(--muted); font-size: 12px; font-weight: 450; }
 .proposition-results { display: grid; gap: 10px; max-height: 270px; overflow-y: auto; }
 .proposition-result { display: grid; gap: 6px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: white; text-align: left; overflow-wrap: anywhere; }
 .proposition-result:hover { border-color: var(--brand); }

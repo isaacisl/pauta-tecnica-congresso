@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261001-2" />
+    <link rel="stylesheet" href="/styles.css?v=20261001-3" />
   </head>
   <body>
     <header class="app-header">
@@ -337,7 +337,7 @@
               <h3 id="proposition-search-title">Buscar proposição na Câmara e no Senado</h3>
               <p>Informe tipo, número e ano. Após encontrar a matéria, você verá projeto, autoria, ementa, despacho e comissão. Confira os dados: despacho e comissão podem ser ajustados ou deixados em branco.</p>
               <div class="proposition-search-fields">
-                <label class="field"><span>Tipo</span><select id="search-type"><option value="">Selecione o tipo</option></select></label>
+                <label class="field"><span>Tipo</span><span class="type-combobox"><input id="search-type" type="text" maxlength="12" placeholder="Digite a sigla (ex.: PL)" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="search-type-options" aria-expanded="false" /><span id="search-type-options" class="type-options" role="listbox" hidden></span></span></label>
                 <label class="field"><span>Número</span><input id="search-number" type="text" inputmode="numeric" maxlength="9" placeholder="Ex.: 1234" /></label>
                 <label class="field"><span>Ano</span><input id="search-year" type="text" inputmode="numeric" maxlength="4" placeholder="Ex.: 2024" /></label>
                 <button id="search-proposition" class="button button-primary" type="button">Pesquisar</button>
@@ -529,6 +529,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261001-2"></script>
+    <script type="module" src="/app.js?v=20261001-3"></script>
   </body>
 </html>
