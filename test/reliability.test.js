@@ -163,6 +163,37 @@ test("monitoramento expõe falhas, limpa erro após sucesso e atualiza correçõ
   } finally { db.close(); }
 });
 
+test("monitoramento ignora o identificador da Câmara informado pelo Senado", () => {
+  const db = createDatabase(":memory:");
+  const linkedSenateId = 457;
+  const cameraAliasId = 456;
+  try {
+    db.saveMatter(official, [{
+      identifiers: [
+        { source: "senado", externalId: cameraAliasId, house: "CD", siglaTipo: "PL", numero: 123, ano: 2026 },
+        { source: "senado", externalId: linkedSenateId, house: "SF", siglaTipo: "PL", numero: 123, ano: 2026 }
+      ],
+      evidence: { id: linkedSenateId },
+      proposition: { ...official, source: "senado", id: linkedSenateId }
+    }]);
+    const record = db.create(fields);
+    const monitoredSources = db.tramitationSources().map(({ source, externalId }) => ({ source, externalId }));
+    assert.deepEqual(monitoredSources, [
+      { source: "camara", externalId: official.id },
+      { source: "senado", externalId: linkedSenateId }
+    ]);
+    assert.deepEqual(record.monitoring.map(({ source, externalId }) => ({ source, externalId })), monitoredSources);
+
+    db.saveTramitationFailure({ source: "senado", externalId: cameraAliasId }, "HTTP 404");
+    db.saveTramitationScan({ source: "senado", externalId: cameraAliasId }, []);
+    db.saveTramitationScan({ source: "senado", externalId: cameraAliasId }, [
+      { eventKey: "informe:999", date: "2026-10-01", organization: "", description: "Evento de alias incorreto", detail: "" }
+    ]);
+    assert.equal(db.get(record.id).monitoring.length, 2);
+    assert.equal(db.get(record.id).tramitationNotice.count, 0);
+  } finally { db.close(); }
+});
+
 test("Senado corrige conteúdo mantendo chave do informe", () => {
   const a = senadoEvents({ autuacoes: [{ informesLegislativos: [{ id: 12, data: "2026-01-01", descricao: "Original" }] }] });
   const b = senadoEvents({ autuacoes: [{ informesLegislativos: [{ id: 12, data: "2026-01-01", descricao: "Corrigido" }] }] });

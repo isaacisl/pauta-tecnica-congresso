@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261001-6" />
+    <link rel="stylesheet" href="/styles.css?v=20261001-8" />
   </head>
   <body>
     <header class="app-header">
@@ -30,10 +30,6 @@
           </button>
         </nav>
 
-        <div class="local-status" title="Os dados ficam armazenados neste computador">
-          <span class="status-dot"></span>
-          Base local
-        </div>
       </div>
       <svg class="institutional-wave" viewBox="0 0 1440 12" preserveAspectRatio="none" aria-hidden="true"><path fill="#ffcf00" d="M0 0C320 18 690 10 960 3S1280 0 1440 5V12H0Z"/><path fill="#009c43" d="M0 5C320 20 690 15 960 7S1280 4 1440 9V12H0Z"/></svg>
     </header>
@@ -88,7 +84,7 @@
               <span>Buscar</span>
               <span class="input-with-icon">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>
-                <input id="filter-q" name="q" type="search" placeholder="Projeto, autor, ementa, comissão ou responsável" autocomplete="off" />
+                <input id="filter-q" name="q" type="search" placeholder="Projeto, autor ou ementa" aria-label="Buscar por projeto, autor, ementa, comissão ou responsável" autocomplete="off" />
               </span>
             </label>
             <label class="field">
@@ -109,7 +105,7 @@
             </label>
             <label class="field">
               <span>Posicionamento</span>
-              <select id="filter-posicionamento" name="posicionamento"><option value="">Todos os posicionamentos</option></select>
+              <select id="filter-posicionamento" name="posicionamento"><option value="">Todos</option></select>
             </label>
           </form>
         </section>
@@ -229,7 +225,7 @@
               </label>
               <label class="field">
                 <span>Posicionamento</span>
-                <select id="totals-filter-posicionamento" name="posicionamento"><option value="">Todos os posicionamentos</option></select>
+                <select id="totals-filter-posicionamento" name="posicionamento"><option value="">Todos</option></select>
               </label>
             </form>
           </section>
@@ -456,7 +452,7 @@
           <span class="footer-spacer"></span>
           <button id="cancel-dialog" class="button button-ghost" type="button">Fechar</button>
           <button id="previous-stage" class="button button-ghost" type="button" hidden>Voltar ao projeto</button>
-          <button id="next-stage" class="button button-primary" type="button">Continuar para acompanhamento</button>
+          <button id="next-stage" class="button button-primary" type="button">Continuar para responsável</button>
           <button id="save-record" class="button button-primary" type="submit" hidden>
             <span class="button-label">Salvar registro</span>
             <span class="button-loading" hidden><span class="spinner spinner-small"></span> Salvando…</span>
@@ -530,6 +526,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261001-5"></script>
+    <script type="module" src="/app.js?v=20261001-7"></script>
   </body>
 </html>

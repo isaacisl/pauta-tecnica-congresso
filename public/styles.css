@@ -220,25 +220,6 @@ a:focus-visible {
   stroke-width: 1.8;
 }
 
-.local-status {
-  display: inline-flex;
-  align-items: center;
-  justify-self: end;
-  gap: 7px;
-  color: #d6e5f5;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border: 2px solid #ccebe0;
-  border-radius: 50%;
-  background: #2ca277;
-  box-shadow: 0 0 0 3px #ebf7f2;
-}
-
 .page-shell {
   width: min(1480px, calc(100% - 48px));
   margin: 0 auto;
@@ -1469,6 +1450,26 @@ td:nth-child(2) .cell-truncate {
 .tramitation-event .tramitation-event-detail { color: var(--muted); font-size: 12px; }
 .tramitation-seen-message { margin: 0; color: var(--brand); font-weight: 700; }
 
+.monitoring-overview {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.monitoring-overview.is-warning { border-color: #ecd4ad; background: #fffaf1; }
+.monitoring-indicator { flex: 0 0 auto; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--green); }
+.monitoring-overview.is-warning .monitoring-indicator { background: var(--amber); }
+.monitoring-overview strong { display: block; font-size: 13px; }
+.monitoring-overview small { display: block; margin-top: 2px; color: var(--muted); line-height: 1.5; }
+.monitoring-details { margin-top: 9px; }
+.monitoring-details summary { width: fit-content; color: var(--brand); font-size: 12px; font-weight: 700; cursor: pointer; }
+.monitoring-details summary:hover { text-decoration: underline; }
+.monitoring-grid { margin-top: 10px; }
+.monitoring-grid > div { padding: 10px 12px; }
+
 .details-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1833,6 +1834,15 @@ td:nth-child(2) .cell-truncate {
   background: #f5deda;
 }
 
+@media (min-width: 1221px) and (max-width: 1500px) {
+  .total-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .totals-overview-row .total-hero,
+  .totals-overview-row .record-count-card { align-self: start; min-height: 168px; }
+  .totals-overview-row .totals-filter-card { padding: 16px; }
+  .totals-overview-row .filter-heading { margin-bottom: 10px; }
+  .totals-overview-row .total-filter-grid { gap: 8px 12px; }
+}
+
 @media (max-width: 1220px) {
   .totals-overview-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .totals-filter-card { grid-column: 1 / -1; }
@@ -1874,8 +1884,7 @@ td:nth-child(2) .cell-truncate {
     min-height: 66px;
   }
 
-  .brand small,
-  .local-status {
+  .brand small {
     display: none;
   }
 

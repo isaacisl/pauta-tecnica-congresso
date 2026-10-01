@@ -307,14 +307,25 @@ function tramitationNoticeMarkup(record) {
 
 function monitoringMarkup(record) {
   if (!record.monitoring?.length) return detailSection("Monitoramento", detailItem("Sem vínculo oficial", "Este registro não é monitorado. Edite e pesquise a matéria para vinculá-lo.", { wide: true }));
-  return detailSection("Monitoramento", record.monitoring.map(item => {
+  const statuses = record.monitoring.map(item => {
     const stale = item.checkedAt && Date.now() - Date.parse(item.checkedAt) > 3 * 60 * 60 * 1000;
     const warning = item.error || item.pending || stale;
     const status = item.error ? "Não foi possível verificar. O sistema tentará novamente."
-      : item.pending ? "Primeira verificação pendente; ausência de aviso ainda não confirma ausência de novidades."
+      : item.pending ? "Primeira verificação pendente."
       : stale ? "Verificação atrasada; os dados podem estar desatualizados." : "Verificação concluída.";
-    return detailItem(`${sourceLabel(item.source)} · ID ${item.externalId}`, `<span class="${warning ? "monitor-warning" : ""}">${escapeHtml(status)}</span><br><small>Última verificação: ${escapeHtml(item.checkedAt ? formatDateTime(item.checkedAt) : "ainda não realizada")}</small>`, { wide: true, html: true });
-  }).join(""), "Verifica movimentações; não substitui os campos salvos do projeto.");
+    const dateLabel = item.error ? "Última tentativa" : "Última verificação";
+    const date = item.error ? item.attemptedAt : item.checkedAt;
+    return { item, warning, status, dateLabel, date };
+  });
+  const warnings = statuses.filter(({ warning }) => warning).length;
+  const lastCheck = statuses.map(({ item }) => item.checkedAt).filter(Boolean).sort().at(-1);
+  const summary = warnings ? `${warnings} ${warnings === 1 ? "fonte precisa" : "fontes precisam"} de atenção.` : "Verificação concluída nas fontes oficiais.";
+  const sources = [...new Set(statuses.map(({ item }) => sourceLabel(item.source)))].join(" e ");
+  return `<section class="detail-section monitoring-section" aria-labelledby="monitoring-title">
+    <div class="detail-section-heading"><h3 id="monitoring-title">Monitoramento</h3><p>Acompanha novas movimentações; não altera automaticamente os dados salvos do projeto.</p></div>
+    <div class="monitoring-overview${warnings ? " is-warning" : ""}"><span class="monitoring-indicator" aria-hidden="true"></span><div><strong>${escapeHtml(summary)}</strong><small>${escapeHtml(sources)}${lastCheck ? ` · Última verificação bem-sucedida: ${escapeHtml(formatDateTime(lastCheck))}` : " · Aguardando primeira verificação"}</small></div></div>
+    <details class="monitoring-details"><summary>Ver verificações por fonte</summary><dl class="details-grid monitoring-grid">${statuses.map(({ item, warning, status, dateLabel, date }) => detailItem(`${sourceLabel(item.source)} · ID ${item.externalId}`, `<span class="${warning ? "monitor-warning" : ""}">${escapeHtml(status)}</span><br><small>${dateLabel}: ${escapeHtml(date ? formatDateTime(date) : "ainda não realizada")}</small>`, { html: true })).join("")}</dl></details>
+  </section>`;
 }
 
 function setDetailsTab(tab, focus = false) {
@@ -346,14 +357,13 @@ async function openRecordDetails(id) {
   dialog.dataset.recordId = String(id);
   const officialLinkMarkup = links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("");
   document.querySelector("#details-panel-project").innerHTML =
-    tramitationNoticeMarkup(record) +
-    monitoringMarkup(record) +
     detailSection("Identificação", [
       detailItem("Projeto", record.projeto, { wide: true }),
       detailItem("Autor(es)", record.autor, { wide: true }),
       detailItem("Ementa", record.ementa, { wide: true }),
       ...(links.length ? [detailItem("Páginas oficiais da matéria", `<span class="official-links">${officialLinkMarkup}</span>`, { wide: true, html: true })] : [])
     ].join("")) +
+    tramitationNoticeMarkup(record) +
     detailSection("Tramitação", [
       detailItem("Despacho", record.despacho, { wide: true }),
       detailItem("Atual comissão", record.atualComissao),
@@ -361,6 +371,7 @@ async function openRecordDetails(id) {
       detailItem("Data e hora da situação", proposition?.statuses?.length > 1 && !proposition.latestStatus ? "Confira abaixo as datas de cada fonte." : formatCamaraDate(proposition?.latestStatus?.dataHora || (!proposition?.statuses ? proposition?.statusDataHora : null))),
       detailItem("Situação legislativa na consulta", proposition?.statuses ? statusDetails(proposition) : "Registro anterior à coleta da situação. Edite e pesquise novamente para obter essa informação.", { wide: true, html: Boolean(proposition?.statuses) })
     ].join("")) +
+    monitoringMarkup(record) +
     (proposition || record.matter ? detailSection("Origem e vínculos", [
       ...(proposition ? [detailItem(`Encontrada em: ${sourceNames(proposition)}`, `Projeto e ementa: ${sourceLabel(proposition.source)} · ID ${proposition.id}. Consulta de ${formatDateTime(proposition.consultadoEm)}.`, { wide: true })] : []),
       ...(record.matter ? [detailItem("Identificações da mesma matéria", matterIdentifications(record.matter.identifiers), { wide: true })] : [])
@@ -372,7 +383,7 @@ async function openRecordDetails(id) {
       detailItem("Sugestão de emenda", statusChip(record.sugestaoEmenda), { html: true }),
       detailItem("Posicionamento", statusChip(record.posicionamento), { wide: true, html: true })
     ].join("")) +
-    detailSection("Documentos", (record.attachments?.length || record.removedAttachments?.length) ? detailItem(`Histórico de documentos (${(record.attachments?.length || 0) + (record.removedAttachments?.length || 0)})`, attachmentHistoryMarkup(record), { wide: true, html: true }) : detailItem("Histórico de documentos", "Nenhum documento adicionado.", { wide: true })) +
+    detailSection("Documentos", (record.attachments?.length || record.removedAttachments?.length) ? detailItem(`Documentos ativos (${record.attachments?.length || 0})`, attachmentHistoryMarkup(record), { wide: true, html: true }) : detailItem("Documentos ativos", "Nenhum documento adicionado.", { wide: true })) +
     detailSection("Histórico do acompanhamento", detailItem("Data de inclusão", formatDateTime(record.createdAt)) + (record.editedAt ? detailItem("Última edição", formatDateTime(record.editedAt)) : "")
       + detailItem("Alterações", '<button class="text-button" type="button" data-load-history>Ver histórico de alterações</button><div id="record-change-history"></div>', { wide: true, html: true }));
   setDetailsTab("project");
@@ -837,7 +848,9 @@ function matterIdentifications(identifiers = []) {
   return identifiers.map((identifier) => {
     const name = `${identifier.siglaTipo} ${identifier.numero}/${identifier.ano}`;
     if (identifier.source === "camara") return `Câmara: ${name} · ID da proposição ${identifier.externalId}`;
-    return `${identifier.house === "SF" ? "Senado" : "Numeração da Câmara no Senado"}: ${name} · ID do processo no Senado ${identifier.externalId}${identifier.codigoMateria ? ` · Código da matéria ${identifier.codigoMateria}` : ""}`;
+    return identifier.house === "SF"
+      ? `Senado: ${name} · ID do processo no Senado ${identifier.externalId}${identifier.codigoMateria ? ` · Código da matéria ${identifier.codigoMateria}` : ""}`
+      : `Identificação da Câmara informada pelo Senado: ${name} · ID de referência ${identifier.externalId}`;
   }).join("\n");
 }
 
