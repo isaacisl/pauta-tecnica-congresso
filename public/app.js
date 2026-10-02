@@ -3,11 +3,12 @@ import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
 import { initializeHistoryUI } from "./record-history.js?v=20261001-2";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
-import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261002-6";
+import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261002-7";
 
 const state = {
   editingRevision: null,
   assignmentIssue: null,
+  editingAssignment: null,
   lookupPreviousIdentity: null,
   detailsRequestId: 0,
   parameters: null,
@@ -248,11 +249,11 @@ function setupParameters() {
 
 function updateFormResponsible(current = elements.formResponsible.value) {
   const area = elements.formArea.value;
-  replaceOptions(elements.formResponsible, responsibleOptions(area, state.parameters));
-  elements.formResponsible.value = retainedResponsible(area, current, state.parameters);
+  replaceOptions(elements.formResponsible, responsibleOptions(area, state.parameters, state.editingAssignment));
+  elements.formResponsible.value = retainedResponsible(area, current, state.parameters, state.editingAssignment);
   elements.formResponsible.disabled = !area;
   elements.formResponsible.options[0].textContent = area ? "Selecione o responsável" : "Selecione uma área primeiro";
-  elements.responsibleHelp.textContent = area ? "Responsáveis da área e consultores disponíveis." : "Selecione a área para escolher o responsável.";
+  elements.responsibleHelp.textContent = area ? "Apenas responsáveis da área selecionada." : "Selecione a área para escolher o responsável.";
   const needsCorrection = Boolean(state.assignmentIssue && (!area || !elements.formResponsible.value));
   elements.assignmentWarning.hidden = !needsCorrection;
   if (needsCorrection) {
@@ -1146,6 +1147,7 @@ function openNewRecord() {
   state.detailsRequestId++;
   state.editingRevision = null;
   state.assignmentIssue = null;
+  state.editingAssignment = null;
   document.querySelector("#record-conflict").hidden = true;
   state.pendingAttachments = [];
   renderPendingAttachments();
@@ -1173,6 +1175,7 @@ async function openEditRecord(id, step = "project") {
   catch (error) { showToast(error.message, "error"); return; }
   state.editingRevision = record.revision;
   state.assignmentIssue = record.assignmentIssue;
+  state.editingAssignment = { areaTecnica: record.areaTecnica, responsavel: record.responsavel };
   document.querySelector("#record-conflict").hidden = true;
 
   clearFieldErrors();

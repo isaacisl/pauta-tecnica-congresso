@@ -22,7 +22,7 @@ test("diretório inclui a planilha e todos os consultores da lista anterior", ()
   assert.equal(assignmentIssue({ areaTecnica: "Consultor", responsavel: "Arthur Trindade (Consultor)" }, parameters), null);
   assert.deepEqual(parameters.responsaveisPorArea["Central de Dados"], ["Isaac Lacerda", "Jhonatan Pires", "João Krebs", "Luidy Santos"]);
   assert.deepEqual(parameters.responsaveisPorArea.Educação, ["Eduardo Santana", "Zacarias Sousa"]);
-  assert.equal(responsibleOptions("Educação", parameters).length, 37);
+  assert.deepEqual(responsibleOptions("Educação", parameters), ["Eduardo Santana", "Zacarias Sousa"]);
   assert.equal(canonicalArea(" Assistencia   Social ", parameters), "Assistência Social");
   assert.equal(canonicalArea("Pré Atendimento", parameters), "Pré-Atendimento");
   assert.equal(canonicalArea("Saneamento", parameters), "Sustentabilidade");
@@ -40,9 +40,12 @@ test("trocar área limpa responsável incompatível sem escolher outra pessoa au
   assert.equal(retainedResponsible("", "Eduardo Santana", parameters), "");
   assert.equal(retainedResponsible("não existe", "Eduardo Santana", parameters), "");
   assert.equal(retainedResponsible("Estudos Técnicos", "Carlos Silva (Colaborador)", parameters), "Carlos Silva");
-  assert.equal(retainedResponsible("Educação", "Arthur Trindade (Consultor)", parameters), "Arthur Trindade");
-  assert.equal(retainedResponsible("Saúde", "Arthur Trindade", parameters), "Arthur Trindade");
-  assert.equal(retainedResponsible("Finanças", "Eudes Sippel (Consultor)", parameters), "Eudes Sippel");
+  const existing = { areaTecnica: "Educação", responsavel: "Arthur Trindade (Consultor)" };
+  assert.equal(retainedResponsible("Educação", "Arthur Trindade (Consultor)", parameters), "");
+  assert.equal(retainedResponsible("Educação", "Arthur Trindade (Consultor)", parameters, existing), "Arthur Trindade");
+  assert.equal(retainedResponsible("Saúde", "Arthur Trindade", parameters, existing), "");
+  assert.equal(retainedResponsible("Consultor", "Arthur Trindade", parameters, existing), "Arthur Trindade");
+  assert.equal(retainedResponsible("Finanças", "Eudes Sippel (Consultor)", parameters, { areaTecnica: "Finanças", responsavel: "Eudes Sippel" }), "Eudes Sippel");
   assert.equal(retainedResponsible("não existe", "Arthur Trindade", parameters), "");
 });
 
@@ -141,12 +144,22 @@ test("nomes antigos não burlam prevenção de acompanhamentos duplicados", asyn
   } finally { reopened.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
-test("consultores podem atuar em qualquer área reconhecida, sem liberar áreas ou colaboradores incorretos", () => {
+test("listas por área não incluem todos os consultores e preservam somente o vínculo salvo", () => {
   for (const area of [...parameters.areasTecnicas, ...parameters.legacyAreasTecnicas]) {
     for (const name of parameters.responsaveisPorArea.Consultor) {
       assert.equal(assignmentIssue({ areaTecnica: area, responsavel: `${name} (Consultor)` }, parameters), null);
     }
   }
+  for (const area of parameters.areasTecnicas.filter(area => area !== "Consultor")) {
+    const options = responsibleOptions(area, parameters);
+    assert.ok(parameters.responsaveisPorArea.Consultor.every(name => !options.includes(name)));
+  }
+  const existing = { areaTecnica: "Educação", responsavel: "Arthur Trindade (Consultor)" };
+  assert.deepEqual(responsibleOptions("Educação", parameters, existing), ["Arthur Trindade", "Eduardo Santana", "Zacarias Sousa"]);
+  assert.deepEqual(responsibleOptions("Central de Dados", parameters, existing), parameters.responsaveisPorArea["Central de Dados"]);
+  assert.deepEqual(responsibleOptions("Consultor", parameters), parameters.responsaveisPorArea.Consultor);
+  assert.deepEqual(responsibleOptions("Finanças", parameters), []);
+  assert.deepEqual(responsibleOptions("Finanças", parameters, { areaTecnica: "Finanças", responsavel: "Eudes Sippel" }), ["Eudes Sippel"]);
   assert.equal(validAssignmentArea("Finanças", "Eudes Sippel", parameters), true);
   assert.equal(validAssignmentArea("Finanças", "Alex Carneiro", parameters), false);
   assert.ok(assignmentIssue({ areaTecnica: "Área inexistente", responsavel: "Arthur Trindade" }, parameters));
@@ -162,8 +175,8 @@ test("áreas renomeadas e consultores antigos são reconhecidos em registros, fi
     const sustainability = db.create({ ...fields, areaTecnica: "Sustentabilidade", responsavel: "Beatriz Silva" });
     const current = db.create({ ...fields, areaTecnica: "Sustentabilidade", responsavel: "Cláudia Lima", projeto: "PL 101/2026" });
     const planning = db.create({ ...fields, areaTecnica: "Planejamento Territorial e Habitação", responsavel: "Jordan Cabral", projeto: "PL 102/2026" });
-    const consultant = db.create({ ...fields, responsavel: "Arthur Trindade", projeto: "PL 103/2026" });
-    const legacyConsultant = db.create({ ...fields, areaTecnica: "Finanças", responsavel: "Eudes Sippel", projeto: "PL 104/2026" });
+    const consultant = db.create({ ...fields, areaTecnica: "Consultor", responsavel: "Arthur Trindade", projeto: "PL 103/2026" });
+    const legacyConsultant = db.create({ ...fields, areaTecnica: "Consultor", responsavel: "Eudes Sippel", projeto: "PL 104/2026" });
     db.setAttachment(sustainability.id, { name: "parecer.pdf", storedName: "fixture.pdf", mime: "application/pdf", size: 5 });
     const revision = db.get(sustainability.id).revision;
     const history = db.history(sustainability.id).length;
@@ -173,8 +186,8 @@ test("áreas renomeadas e consultores antigos são reconhecidos em registros, fi
     try {
       raw.prepare("UPDATE records SET area_tecnica = ?, responsavel = ? WHERE id = ?").run("Saneamento", "Beatriz Silva (Colaborador)", sustainability.id);
       raw.prepare("UPDATE records SET area_tecnica = ?, responsavel = ? WHERE id = ?").run("Planej. Territ.  e Habitação", "Jordan Cabral (Colaborador)", planning.id);
-      raw.prepare("UPDATE records SET responsavel = ? WHERE id = ?").run("Arthur Trindade (Consultor)", consultant.id);
-      raw.prepare("UPDATE records SET responsavel = ? WHERE id = ?").run("Eudes Sippel (Consultor)", legacyConsultant.id);
+      raw.prepare("UPDATE records SET area_tecnica = ?, responsavel = ? WHERE id = ?").run("Educação", "Arthur Trindade (Consultor)", consultant.id);
+      raw.prepare("UPDATE records SET area_tecnica = ?, responsavel = ? WHERE id = ?").run("Finanças", "Eudes Sippel (Consultor)", legacyConsultant.id);
     } finally { raw.close(); }
     db = createDatabase(databasePath);
     for (const saved of [sustainability, current, planning, consultant, legacyConsultant]) assert.equal(db.get(saved.id).assignmentIssue, null);
@@ -191,6 +204,11 @@ test("áreas renomeadas e consultores antigos são reconhecidos em registros, fi
     assert.equal(db.list({ areaTecnica: "Planejamento Territorial e Habitação" })[0].id, planning.id);
     assert.deepEqual(db.filterOptions({ areaTecnica: "Educação" }).responsaveis, ["Arthur Trindade"]);
     assert.deepEqual(db.filterOptions({ areaTecnica: "Finanças" }).responsaveis, ["Eudes Sippel"]);
+    assert.throws(() => db.create({ ...fields, responsavel: "Arthur Trindade", projeto: "PL 105/2026" }), error => Boolean(error.fields?.responsavel));
+    const existing = db.get(consultant.id);
+    assert.throws(() => db.update(consultant.id, { ...existing, responsavel: "Eudes Sippel" }), error => Boolean(error.fields?.responsavel));
+    assert.throws(() => db.update(consultant.id, { ...existing, areaTecnica: "Saúde" }), error => Boolean(error.fields?.responsavel));
+    assert.equal(db.update(consultant.id, { ...existing, haParecer: "Sim" }).responsavel, "Arthur Trindade");
     assert.ok(!db.filterOptions().areasTecnicas.includes("Saneamento"));
     assert.equal(db.totals().total, 5);
     assert.equal(db.totals().byArea.find(item => item.label === "Sustentabilidade").count, 2);
