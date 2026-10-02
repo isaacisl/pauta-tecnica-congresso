@@ -3,7 +3,7 @@ import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
 import { initializeHistoryUI } from "./record-history.js?v=20261001-2";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
-import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible } from "./team-utils.js?v=20261002-5";
+import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261002-6";
 
 const state = {
   editingRevision: null,
@@ -252,7 +252,7 @@ function updateFormResponsible(current = elements.formResponsible.value) {
   elements.formResponsible.value = retainedResponsible(area, current, state.parameters);
   elements.formResponsible.disabled = !area;
   elements.formResponsible.options[0].textContent = area ? "Selecione o responsável" : "Selecione uma área primeiro";
-  elements.responsibleHelp.textContent = area ? "Apenas pessoas vinculadas à área selecionada." : "Selecione a área para escolher o responsável.";
+  elements.responsibleHelp.textContent = area ? "Responsáveis da área e consultores disponíveis." : "Selecione a área para escolher o responsável.";
   const needsCorrection = Boolean(state.assignmentIssue && (!area || !elements.formResponsible.value));
   elements.assignmentWarning.hidden = !needsCorrection;
   if (needsCorrection) {
@@ -1150,6 +1150,8 @@ function openNewRecord() {
   state.pendingAttachments = [];
   renderPendingAttachments();
   elements.form.reset();
+  replaceOptions(elements.formArea, state.parameters.areasTecnicas);
+  elements.formArea.value = "";
   updateFormResponsible("");
   elements.form.elements.id.value = "";
   resetLookup();
@@ -1177,9 +1179,13 @@ async function openEditRecord(id, step = "project") {
   state.pendingAttachments = [];
   renderPendingAttachments();
   elements.attachmentInput.value = "";
+  const area = canonicalArea(record.areaTecnica, state.parameters);
+  const validArea = validAssignmentArea(area, record.responsavel, state.parameters);
+  const areas = [...state.parameters.areasTecnicas];
+  if (validArea && !areas.includes(area)) areas.push(area);
+  replaceOptions(elements.formArea, areas);
   for (const [, field] of labels) elements.form.elements[field].value = record[field];
-  elements.formArea.value = canonicalArea(record.areaTecnica, state.parameters);
-  if (!state.parameters.areasTecnicas.includes(elements.formArea.value)) elements.formArea.value = "";
+  elements.formArea.value = validArea ? area : "";
   updateFormResponsible(record.responsavel);
   elements.form.elements.id.value = record.id;
   resetLookup(record);
