@@ -2,6 +2,7 @@ import { officialLinks } from "./official-links.js";
 import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
 import { initializeHistoryUI } from "./record-history.js?v=20261001-2";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
+import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
 
 const state = {
   editingRevision: null,
@@ -732,7 +733,7 @@ function renderExistingAttachment(record) {
 function attachmentHistoryMarkup(record, editable = false) {
   const active = record.attachments || [];
   const removed = record.removedAttachments || [];
-  const activeMarkup = active.length ? `<ul class="document-list">${active.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(formatFileSize(file.size))} · ${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))}` : "Data de inclusão não registrada (arquivo anterior ao histórico)"}</small></div><span class="document-actions"><a class="text-button attachment-link" href="/api/records/${record.id}/attachments/${file.id}" aria-label="Baixar ${escapeHtml(file.name)}">Baixar</a>${editable ? `<button type="button" class="text-button attachment-remove" data-remove-attachment="${file.id}" aria-label="Excluir ${escapeHtml(file.name)}">Excluir</button>` : ""}</span></li>`).join("")}</ul>` : '<p class="document-empty">Nenhum documento ativo.</p>';
+  const activeMarkup = active.length ? `<ul class="document-list">${active.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(formatFileSize(file.size))} · ${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))}` : "Data de inclusão não registrada (arquivo anterior ao histórico)"}</small>${!supportsDocumentPreview(file.name) ? '<small>Para abrir este formato, use Baixar.</small>' : ""}</div><span class="document-actions">${supportsDocumentPreview(file.name) ? `<button type="button" class="text-button" data-preview-record="${record.id}" data-preview-attachment="${file.id}" data-preview-name="${escapeHtml(file.name)}" aria-label="Visualizar ${escapeHtml(file.name)}">Visualizar</button>` : ""}<a class="text-button attachment-link" href="/api/records/${record.id}/attachments/${file.id}" aria-label="Baixar ${escapeHtml(file.name)}">Baixar</a>${editable ? `<button type="button" class="text-button attachment-remove" data-remove-attachment="${file.id}" aria-label="Excluir ${escapeHtml(file.name)}">Excluir</button>` : ""}</span></li>`).join("")}</ul>` : '<p class="document-empty">Nenhum documento ativo.</p>';
   const removedMarkup = removed.length ? `<details class="removed-documents"><summary>Documentos removidos (${removed.length})</summary><ul class="document-list">${removed.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))} · ` : ""}Removido em ${escapeHtml(formatDateTime(file.deletedAt))}</small></div>${editable ? `<button type="button" class="text-button" data-restore-attachment="${file.id}" aria-label="Restaurar ${escapeHtml(file.name)}">Restaurar</button>` : ""}</li>`).join("")}</ul></details>` : "";
   return activeMarkup + removedMarkup;
 }
@@ -1567,6 +1568,7 @@ function setupEvents() {
   elements.stepFollowup.addEventListener("click", advanceToFollowup);
   elements.deleteRecord.addEventListener("click", deleteRecord);
   elements.attachmentInput.addEventListener("change", queueAttachments);
+  initializeDocumentPreview({ containers: [elements.attachmentHistory, document.querySelector("#details-panel-followup")], closeOnBackdropClick });
   elements.attachmentHistory.addEventListener("click", (event) => {
     const remove = event.target.closest("[data-remove-attachment]");
     const restore = event.target.closest("[data-restore-attachment]");

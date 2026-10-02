@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261001-8" />
+    <link rel="stylesheet" href="/styles.css?v=20261002-2" />
   </head>
   <body>
     <header class="app-header">
@@ -306,6 +306,31 @@
       </div>
     </dialog>
 
+    <dialog id="document-preview-dialog" class="record-dialog document-preview-dialog" aria-labelledby="document-preview-title">
+      <div class="document-preview-layout">
+        <div class="dialog-header">
+          <div><p class="eyebrow">Documento do acompanhamento</p><h2 id="document-preview-title">Visualizar documento</h2><p id="document-preview-name"></p></div>
+          <button id="close-document-preview" class="icon-button" type="button" aria-label="Fechar visualização">✕</button>
+        </div>
+        <div class="document-preview-body">
+          <div id="document-preview-loading" class="document-preview-message" role="status"><span class="spinner" aria-hidden="true"></span><p id="document-preview-loading-text">Carregando documento…</p></div>
+          <div id="document-preview-error" class="document-preview-message" hidden><p id="document-preview-error-text" role="alert"></p><button id="document-preview-retry" type="button" class="button button-secondary">Tentar novamente</button></div>
+          <div id="document-preview-pdf" class="document-preview-pdf" hidden>
+            <div class="document-preview-toolbar" aria-label="Controles do documento">
+              <div class="document-preview-pagination"><button id="document-preview-previous" class="icon-button" type="button" aria-label="Página anterior do documento">‹</button><label>Página <input id="document-preview-page" type="number" min="1" value="1" aria-label="Número da página do documento" /></label><span>de <span id="document-preview-page-count">0</span></span><button id="document-preview-next" class="icon-button" type="button" aria-label="Próxima página do documento">›</button></div>
+              <div class="document-preview-zoom"><button id="document-preview-zoom-out" class="icon-button" type="button" aria-label="Diminuir zoom do documento">−</button><span id="document-preview-zoom-label" aria-live="polite">100%</span><button id="document-preview-zoom-in" class="icon-button" type="button" aria-label="Aumentar zoom do documento">+</button><button id="document-preview-fit" class="text-button" type="button">Ajustar à tela</button></div>
+            </div>
+            <div id="document-preview-pages" class="document-preview-pages"></div>
+          </div>
+          <img id="document-preview-image" alt="Prévia do documento" hidden />
+        </div>
+        <div class="dialog-footer document-preview-footer">
+          <p id="document-preview-note">O documento original está disponível em Baixar.</p>
+          <div class="document-preview-actions"><a id="document-preview-open" class="text-button" target="_blank" rel="noopener noreferrer" hidden>Abrir em outra aba</a><a id="document-preview-download" class="button button-primary">Baixar original</a></div>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="record-dialog" class="record-dialog" aria-labelledby="dialog-title">
       <form id="record-form" novalidate>
         <div class="dialog-header">
@@ -526,6 +551,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261001-7"></script>
+    <script type="module" src="/app.js?v=20261002-3"></script>
   </body>
 </html>

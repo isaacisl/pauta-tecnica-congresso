@@ -8,6 +8,7 @@ import { parameters } from "./lib/parameters.js";
 import { propositionTypes } from "./lib/proposition-types.js";
 import { createPropositionService } from "./lib/propositions.js";
 import { createTramitationMonitor } from "./lib/tramitations.js";
+import { createDocumentPreviews } from "./lib/document-previews.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(rootDir, "public");
@@ -35,6 +36,8 @@ const mimeTypes = Object.freeze({
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".wasm": "application/wasm",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
@@ -219,6 +222,7 @@ export async function startServer({
   databasePath = process.env.DATABASE_PATH || defaultDatabasePath,
   camaraFetch = fetch,
   senadoFetch = fetch,
+  documentConverter,
   tramitationCheckDelayMs = 10000,
   tramitationCheckIntervalMs = 60 * 60 * 1000
 } = {}) {
@@ -227,6 +231,7 @@ export async function startServer({
   const monitor = createTramitationMonitor({ database, camaraFetch, senadoFetch });
   const uploadDirectory = path.join(path.dirname(databasePath), "uploads");
   await mkdir(uploadDirectory, { recursive: true });
+  const previews = createDocumentPreviews({ uploadDirectory, convertDocument: documentConverter });
 
   const server = createServer(async (request, response) => {
     try {
@@ -298,6 +303,26 @@ export async function startServer({
         const record = database.restoreAttachment(Number(attachmentRestoreMatch[1]), Number(attachmentRestoreMatch[2]), revision);
         if (!record) sendError(response, 404, "Documento removido não encontrado neste registro.");
         else send(response, 200, { record });
+        return;
+      }
+
+      const previewMatch = pathname.match(/^\/api\/records\/(\d+)\/attachments\/(\d+)\/preview$/);
+      if (previewMatch) {
+        if (request.method !== "GET") { sendError(response, 405, "Método não permitido."); return; }
+        const recordId = Number(previewMatch[1]);
+        const attachmentId = Number(previewMatch[2]);
+        const attachment = database.get(recordId) && database.getAttachment(recordId, attachmentId);
+        if (!attachment) { sendError(response, 404, "Documento não encontrado neste registro."); return; }
+        const preview = await previews.get(attachment);
+        // A removal while a Word document is converting revokes this request too.
+        if (!database.get(recordId) || !database.getAttachment(recordId, attachmentId)) {
+          sendError(response, 404, "Este documento não está mais disponível neste registro.");
+          return;
+        }
+        send(response, 200, preview.content, preview.mime, {
+          "Content-Disposition": `inline; filename="previa${path.extname(preview.name)}"; filename*=UTF-8''${encodeURIComponent(preview.name)}`,
+          "X-Preview-Converted": String(preview.converted)
+        });
         return;
       }
 
