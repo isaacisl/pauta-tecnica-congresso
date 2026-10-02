@@ -974,6 +974,14 @@ tbody tr:hover td:last-child {
   box-shadow: 0 0 0 3px #fbeae8;
 }
 
+.assignment-flag { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.assignment-flag span { width: 9px; height: 9px; border-radius: 50%; background: #be302b; box-shadow: 0 0 0 3px #fbeae8; }
+.assignment-flag:hover, .assignment-flag:focus-visible { background: #fbeae8; outline: 2px solid #be302b; outline-offset: 2px; }
+.assignment-notice, .assignment-form-warning { padding: 14px 16px; margin: 0 0 18px; border: 1px solid #f2c5c1; border-radius: 12px; color: #a12d27; background: #fff6f5; font-size: .85rem; line-height: 1.5; overflow-wrap: anywhere; }
+.assignment-notice { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.assignment-notice strong { display: block; margin-bottom: 3px; }
+.assignment-notice .text-button { color: #a12d27; }
+
 .cell-truncate {
   display: -webkit-box;
   overflow: hidden;

@@ -8,7 +8,7 @@ import { createDatabase } from "../lib/database.js";
 import { createPropositionService, summarizeStatuses } from "../lib/propositions.js";
 import { startServer } from "../server.js";
 
-const fields = { areaTecnica: "Educação", responsavel: "Beatriz Silva (Colaborador)", atualComissao: "Manual", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável" };
+const fields = { areaTecnica: "Educação", responsavel: "Eduardo Santana", atualComissao: "Manual", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável" };
 const query = () => new URLSearchParams("siglaTipo=PL&numero=1234&ano=2020");
 const camera = { id: 123, siglaTipo: "PL", numero: 1234, ano: 2020, ementa: "Ementa da Câmara", dataApresentacao: "2020-01-01T10:00", statusProposicao: { dataHora: "2025-03-17T11:00", descricaoSituacao: "Aguardando apreciação do Senado", descricaoTramitacao: "Remessa ao Senado" } };
 const senate = { id: 123, codigoMateria: 1000, identificacao: "PL 1234/2020", casaIdentificadora: "SF", conteudo: { ementa: "Ementa do Senado" }, documento: { dataApresentacao: "2020-06-01" }, situacaoAtual: "MATÉRIA COM A RELATORIA", dataSituacaoAtual: "2026-03-17", dthUltimaAtualizacao: "2099-12-31T10:00" };

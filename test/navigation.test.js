@@ -8,7 +8,7 @@ import { createPropositionService } from "../lib/propositions.js";
 const camera = { id: 2310535, siglaTipo: "PL", numero: 4309, ano: 2021, ementa: "Política Nacional de Arborização Urbana",
   statusProposicao: { dataHora: "2026-01-10T10:00", siglaOrgao: "CCJC", descricaoSituacao: "Aguardando Parecer" } };
 const olderDispatch = { dataHora: "2022-02-02T10:00", sequencia: 2, siglaOrgao: "MESA",
-  codTipoTramitacao: "110", descricaoTramitacao: "Distribuição", despacho: "Às Comissões de Desenvolvimento Urbano; Meio Ambiente; Finanças; e Constituição e Justiça." };
+  codTipoTramitacao: "110", descricaoTramitacao: "Distribuição", despacho: "Às Comissões de Desenvolvimento Urbano; Meio Ambiente; Finanças e Tributação; e Constituição e Justiça." };
 
 test("Câmara extrai o último despacho formal e o órgão da última tramitação, não a última ação textual", async () => {
   const calls = [];
@@ -128,7 +128,7 @@ test("falha nas tramitações não impede selecionar e salvar com valores manuai
     assert.equal(selected.proposition.despacho, "");
     assert.equal(selected.proposition.atualComissao, "CCJC");
     assert.match(selected.proposition.navigationWarning, /tramitações/);
-    const common = { areaTecnica: "Educação", responsavel: "Beatriz Silva (Colaborador)",
+    const common = { areaTecnica: "Educação", responsavel: "Eduardo Santana",
       haParecer: "Não", sugestaoEmenda: "Não", posicionamento: "Favorável" };
     const saved = database.create(service.recordInput({ ...common, propositionToken: selected.propositionToken,
       despacho: "", atualComissao: "" }));

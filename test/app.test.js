@@ -10,7 +10,7 @@ let temporaryDirectory;
 
 const sampleRecord = {
   areaTecnica: "Educação",
-  responsavel: "Beatriz Silva (Colaborador)",
+  responsavel: "Eduardo Santana",
   projeto: "PL 1234/2026",
   ementa: "Institui uma política nacional de apoio à educação municipal.",
   despacho: "À Comissão de Educação.",
@@ -58,8 +58,9 @@ test("disponibiliza os parâmetros extraídos da planilha", async () => {
   const response = await request("/api/parameters");
   const payload = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(payload.areasTecnicas.length, 22);
-  assert.equal(payload.responsaveis.length, 80);
+  assert.equal(payload.areasTecnicas.length, 43);
+  assert.equal(payload.responsaveis.length, 133);
+  assert.deepEqual(payload.responsaveisPorArea["Central de Dados"], ["Isaac Lacerda", "Jhonatan Pires", "João Krebs", "Luidy Santos"]);
   assert.deepEqual(payload.pareceres, ["Sim", "Não", "Em andamento"]);
   assert.ok(payload.propositionTypes.some(([code]) => code === "PRLP(V)"));
 
@@ -91,15 +92,15 @@ test("valida, cria, filtra e edita registros", async () => {
 
   const filterOptions = await (await request("/api/filter-options")).json();
   assert.deepEqual(filterOptions.areasTecnicas, ["Educação"]);
-  assert.deepEqual(filterOptions.responsaveis, ["Beatriz Silva (Colaborador)"]);
+  assert.deepEqual(filterOptions.responsaveis, ["Eduardo Santana"]);
   assert.deepEqual(filterOptions.pareceres, ["Em andamento"]);
   assert.deepEqual(filterOptions.emendas, ["Sim"]);
   assert.deepEqual(filterOptions.posicionamentos, ["Favorável"]);
 
   const secondRecord = {
     ...sampleRecord,
-    areaTecnica: "Finanças",
-    responsavel: "Carlos Silva  (Colaborador)",
+    areaTecnica: "Finanças e Tributação",
+    responsavel: "Alex Carneiro",
     projeto: "PL 987/2026",
     haParecer: "Não",
     sugestaoEmenda: "Não",
@@ -114,19 +115,19 @@ test("valida, cria, filtra e edita registros", async () => {
   assert.equal(secondCreateResponse.status, 201);
 
   const educationOptions = await (await request(`/api/filter-options?areaTecnica=${encodeURIComponent("Educação")}`)).json();
-  assert.deepEqual(educationOptions.responsaveis, ["Beatriz Silva (Colaborador)"]);
+  assert.deepEqual(educationOptions.responsaveis, ["Eduardo Santana"]);
   assert.deepEqual(educationOptions.pareceres, ["Em andamento"]);
 
-  const financeOptions = await (await request(`/api/filter-options?areaTecnica=${encodeURIComponent("Finanças")}`)).json();
-  assert.deepEqual(financeOptions.responsaveis, ["Carlos Silva  (Colaborador)"]);
+  const financeOptions = await (await request(`/api/filter-options?areaTecnica=${encodeURIComponent("Finanças e Tributação")}`)).json();
+  assert.deepEqual(financeOptions.responsaveis, ["Alex Carneiro"]);
   assert.deepEqual(financeOptions.posicionamentos, ["Desfavorável"]);
 
-  const responsibleOptions = await (await request(`/api/filter-options?responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}`)).json();
+  const responsibleOptions = await (await request(`/api/filter-options?responsavel=${encodeURIComponent("Eduardo Santana")}`)).json();
   assert.deepEqual(responsibleOptions.areasTecnicas, ["Educação"]);
 
   await request(`/api/records/${secondCreated.id}`, { method: "DELETE", body: JSON.stringify({ revision: secondCreated.revision }) });
 
-  const filteredResponse = await request(`/api/records?areaTecnica=${encodeURIComponent("Educação")}&responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}&haParecer=${encodeURIComponent("Em andamento")}`);
+  const filteredResponse = await request(`/api/records?areaTecnica=${encodeURIComponent("Educação")}&responsavel=${encodeURIComponent("Eduardo Santana")}&haParecer=${encodeURIComponent("Em andamento")}`);
   const filtered = await filteredResponse.json();
   assert.equal(filtered.count, 1);
   assert.equal(filtered.records[0].id, created.id);
@@ -150,7 +151,7 @@ test("totaliza e exporta a base em CSV compatível com Excel", async () => {
   assert.deepEqual(totals.byArea[0], { label: "Educação", count: 1 });
   assert.deepEqual(totals.byParecer[0], { label: "Sim", count: 1 });
 
-  const filteredTotals = await (await request(`/api/totals?responsavel=${encodeURIComponent("Beatriz Silva (Colaborador)")}`)).json();
+  const filteredTotals = await (await request(`/api/totals?responsavel=${encodeURIComponent("Eduardo Santana")}`)).json();
   assert.equal(filteredTotals.total, 1);
   assert.equal(filteredTotals.overallTotal, 1);
 

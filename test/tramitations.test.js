@@ -8,7 +8,7 @@ import { camaraEvents, senadoEvents } from "../lib/tramitations.js";
 
 const recordInput = {
   areaTecnica: "Educação",
-  responsavel: "Beatriz Silva (Colaborador)",
+  responsavel: "Eduardo Santana",
   projeto: "PL 1234/2026",
   autor: "",
   ementa: "Projeto de teste",
@@ -61,7 +61,7 @@ test("notifica somente tramitações posteriores à linha de base e mantém o av
     assert.equal(app.database.get(first.id).tramitationNotice.count, 1, "erro de API não apaga alerta");
     fail = false;
 
-    const second = app.database.create({ ...recordInput, responsavel: "Arthur Trindade (Consultor)", camara: official, proposition: official });
+    const second = app.database.create({ ...recordInput, responsavel: "Zacarias Sousa", camara: official, proposition: official });
     assert.equal(app.database.get(second.id).tramitationNotice.count, 0, "novo acompanhamento não herda alertas antigos");
 
     const response = await fetch(`${app.url}/api/records/${first.id}/tramitations/acknowledge`, {

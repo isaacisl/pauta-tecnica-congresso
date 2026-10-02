@@ -28,6 +28,12 @@ O comando usa `DATABASE_PATH` quando configurado. Cria um snapshot consistente d
 
 Para restaurar, pare o serviço, preserve a instalação atual inteira e use o `registros.sqlite` e a pasta `uploads` do mesmo backup em um diretório novo. Aponte `DATABASE_PATH` para esse arquivo e inicie o serviço atualizado. Não misture o snapshot restaurado com arquivos `-wal`/`-shm` de outra base. O teste automatizado de backup verifica reabertura, histórico, lixeira e documentos; também teste a recuperação na infraestrutura do servidor.
 
+### Áreas e responsáveis
+
+A lista de 133 colaboradores em 43 setores foi importada de `Colaboradores_confederando.xlsx` (02/10/2026) e é mantida em `lib/collaborators.js`. O cadastro e a edição mostram apenas os responsáveis da área escolhida; trocar de área limpa uma seleção incompatível. Os filtros de registros e totalização também restringem responsáveis por área, e o servidor valida o vínculo antes de gravar.
+
+Registros antigos não são apagados nem reatribuídos. Uma bolinha vermelha ao lado do responsável identifica pendências; clicar nela abre a segunda etapa para correção. O detalhamento também informa a pendência. A sinalização é calculada a cada leitura e desaparece após salvar um vínculo válido, sem migração destrutiva nem coluna adicional. Áreas antigas continuam nos filtros quando houver registros, para permitir localizar e corrigir esses cadastros. Sufixos antigos como `(Colaborador)` e variações de espaços/acentos da mesma pessoa são reconhecidos; mudanças de setor não são presumidas. As formas antigas permanecem armazenadas até o técnico salvar a correção. Novos cadastros usam os nomes da planilha, sem inventar cargos.
+
 ### Visualização de documentos
 
 Nos detalhes e na edição do acompanhamento, **Visualizar** abre o documento em uma janela do sistema. PDF, PNG e JPEG são exibidos diretamente. O leitor PDF possui navegação por páginas, zoom e ajuste à tela; quando disponível, há uma seção com o texto da página para leitura e cópia. O sistema distribui [PDF.js](https://mozilla.github.io/pdf.js/) 6.3.289 localmente em `public/vendor/pdfjs/`, carregado apenas ao abrir uma prévia PDF, sem CDN nem envio dos documentos a terceiros. Word (`.doc` e `.docx`), ODT e RTF são convertidos para uma prévia PDF no primeiro acesso; o arquivo original e sua data de inclusão permanecem preservados. Excel e PowerPoint continuam disponíveis por **Baixar**. A prévia pode apresentar diferenças de formatação, principalmente se faltarem as fontes usadas no documento.
@@ -44,7 +50,7 @@ Não foram adicionados login, permissões por pessoa ou exclusão automática de
 
 ## Como executar
 
-Requisito: Node.js 22.5 ou mais recente.
+Requisito: Node.js 22.13 ou mais recente. As funções de normalização de nomes nos filtros usam a API `DatabaseSync.function`, disponível a partir dessa versão. Esta atualização foi testada com Node.js 24.13.
 
 ```powershell
 npm start

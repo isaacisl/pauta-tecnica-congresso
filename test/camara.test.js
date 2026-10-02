@@ -8,7 +8,7 @@ import { startServer } from "../server.js";
 import { createCamaraClient } from "../lib/camara.js";
 import { createDatabase } from "../lib/database.js";
 
-const fields = { areaTecnica: "Educação", responsavel: "Beatriz Silva (Colaborador)", projeto: "Manual", ementa: "Manual", atualComissao: "Comissão preenchida manualmente", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável" };
+const fields = { areaTecnica: "Educação", responsavel: "Eduardo Santana", projeto: "Manual", ementa: "Manual", atualComissao: "Comissão preenchida manualmente", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável" };
 const official = { id: 42, siglaTipo: "PL", numero: 1234, ano: 2024, ementa: "Ementa oficial", dataApresentacao: "2024-04-12T15:20", statusProposicao: { dataHora: "2024-04-19T00:00" } };
 const query = () => new URLSearchParams("siglaTipo=PL&numero=1234&ano=2024");
 

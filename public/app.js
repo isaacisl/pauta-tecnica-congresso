@@ -3,9 +3,11 @@ import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
 import { initializeHistoryUI } from "./record-history.js?v=20261001-2";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
+import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible } from "./team-utils.js?v=20261002-5";
 
 const state = {
   editingRevision: null,
+  assignmentIssue: null,
   lookupPreviousIdentity: null,
   detailsRequestId: 0,
   parameters: null,
@@ -83,6 +85,10 @@ const elements = {
   formProject: document.querySelector("#form-stage-project"),
   projectFields: document.querySelector("#project-fields"),
   formFollowup: document.querySelector("#form-stage-followup"),
+  formArea: document.querySelector("#field-area"),
+  formResponsible: document.querySelector("#field-responsavel"),
+  assignmentWarning: document.querySelector("#assignment-warning"),
+  responsibleHelp: document.querySelector("#responsavel-help"),
   selectedProjectName: document.querySelector("#selected-project-name"),
   stepProject: document.querySelector("#step-project"),
   stepFollowup: document.querySelector("#step-followup"),
@@ -194,7 +200,7 @@ function replaceOptions(select, values) {
 
 function availableInParameterOrder(parameterValues, availableValues) {
   const available = new Set(availableValues);
-  return parameterValues.filter((value) => available.has(value));
+  return [...parameterValues.filter((value) => available.has(value)), ...availableValues.filter(value => !parameterValues.includes(value))];
 }
 
 function orderedFilterOptions(filterOptions) {
@@ -234,10 +240,35 @@ function renderTotalFilterOptions() {
 
 function setupParameters() {
   addOptions(document.querySelector("#field-area"), state.parameters.areasTecnicas);
-  addOptions(document.querySelector("#field-responsavel"), state.parameters.responsaveis);
+  updateFormResponsible();
   addOptions(document.querySelector("#field-parecer"), state.parameters.pareceres);
   addOptions(document.querySelector("#field-emenda"), state.parameters.emendas);
   addOptions(document.querySelector("#field-posicionamento"), state.parameters.posicionamentos);
+}
+
+function updateFormResponsible(current = elements.formResponsible.value) {
+  const area = elements.formArea.value;
+  replaceOptions(elements.formResponsible, responsibleOptions(area, state.parameters));
+  elements.formResponsible.value = retainedResponsible(area, current, state.parameters);
+  elements.formResponsible.disabled = !area;
+  elements.formResponsible.options[0].textContent = area ? "Selecione o responsável" : "Selecione uma área primeiro";
+  elements.responsibleHelp.textContent = area ? "Apenas pessoas vinculadas à área selecionada." : "Selecione a área para escolher o responsável.";
+  const needsCorrection = Boolean(state.assignmentIssue && (!area || !elements.formResponsible.value));
+  elements.assignmentWarning.hidden = !needsCorrection;
+  if (needsCorrection) {
+    elements.assignmentWarning.textContent = `${state.assignmentIssue.message} Cadastro anterior: ${state.assignmentIssue.previousArea} · ${state.assignmentIssue.previousResponsible}.`;
+  }
+}
+
+function limitResponsibleFilter(areaSelect, responsibleSelect) {
+  if (!areaSelect.value) return;
+  const allowed = new Set(responsibleOptions(areaSelect.value, state.parameters));
+  replaceOptions(responsibleSelect, [...responsibleSelect.options].slice(1).map(option => option.value).filter(value => allowed.has(canonicalResponsible(value, state.parameters))));
+}
+
+function assignmentNoticeMarkup(record) {
+  if (!record.assignmentIssue) return "";
+  return `<div class="assignment-notice" role="status"><span><strong>Cadastro pendente</strong>${escapeHtml(record.assignmentIssue.message)}</span><button class="text-button" type="button" data-correct-assignment="${record.id}">Corrigir cadastro</button></div>`;
 }
 
 function filtersFromForm(form) {
@@ -356,6 +387,7 @@ async function openRecordDetails(id) {
   const links = officialLinks(record);
   const dialog = document.querySelector("#details-dialog");
   dialog.dataset.recordId = String(id);
+  document.querySelector("#details-assignment-warning").innerHTML = assignmentNoticeMarkup(record);
   const officialLinkMarkup = links.map((link) => `<a class="official-link" href="${link.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>`).join("");
   document.querySelector("#details-panel-project").innerHTML =
     detailSection("Identificação", [
@@ -441,7 +473,9 @@ function renderRecords() {
           : `<span class="${["areaTecnica", "projeto"].includes(field) ? "cell-primary " : ""}cell-truncate" title="${escapeHtml(record[field])}">${escapeHtml(record[field])}</span>`;
         const indicator = field === "projeto" && record.tramitationNotice?.count
           ? `<span class="notification-dot" role="img" aria-label="${record.tramitationNotice.count} ${record.tramitationNotice.count === 1 ? "nova tramitação" : "novas tramitações"}" title="${record.tramitationNotice.count} ${record.tramitationNotice.count === 1 ? "nova tramitação" : "novas tramitações"}"></span>` : "";
-        return `<td data-label="${escapeHtml(label)}"><span class="project-cell-content">${content}${indicator}</span></td>`;
+        const assignmentIndicator = field === "responsavel" && record.assignmentIssue
+          ? `<button class="assignment-flag" type="button" data-assignment-id="${record.id}" aria-label="Corrigir responsável de ${escapeHtml(record.projeto)}" title="Cadastro pendente: ${escapeHtml(record.assignmentIssue.message)}"><span aria-hidden="true"></span></button>` : "";
+        return `<td data-label="${escapeHtml(label)}"><span class="project-cell-content">${content}${indicator}${assignmentIndicator}</span></td>`;
       });
       cells.push(`
         <td data-label="Data de inclusão">
@@ -1111,10 +1145,12 @@ async function searchPropositions() {
 function openNewRecord() {
   state.detailsRequestId++;
   state.editingRevision = null;
+  state.assignmentIssue = null;
   document.querySelector("#record-conflict").hidden = true;
   state.pendingAttachments = [];
   renderPendingAttachments();
   elements.form.reset();
+  updateFormResponsible("");
   elements.form.elements.id.value = "";
   resetLookup();
   clearFieldErrors();
@@ -1134,6 +1170,7 @@ async function openEditRecord(id, step = "project") {
   try { ({ record } = await api(`/api/records/${id}`)); }
   catch (error) { showToast(error.message, "error"); return; }
   state.editingRevision = record.revision;
+  state.assignmentIssue = record.assignmentIssue;
   document.querySelector("#record-conflict").hidden = true;
 
   clearFieldErrors();
@@ -1141,6 +1178,9 @@ async function openEditRecord(id, step = "project") {
   renderPendingAttachments();
   elements.attachmentInput.value = "";
   for (const [, field] of labels) elements.form.elements[field].value = record[field];
+  elements.formArea.value = canonicalArea(record.areaTecnica, state.parameters);
+  if (!state.parameters.areasTecnicas.includes(elements.formArea.value)) elements.formArea.value = "";
+  updateFormResponsible(record.responsavel);
   elements.form.elements.id.value = record.id;
   resetLookup(record);
   elements.dialogKicker.textContent = "Edição de cadastro";
@@ -1208,6 +1248,7 @@ function formPayload() {
 
 function setSaving(saving) {
   for (const [, field] of labels) elements.form.elements[field].disabled = saving;
+  elements.formResponsible.disabled = saving || !elements.formArea.value;
   elements.saveRecord.disabled = saving || state.lookupBusy;
   elements.searchProposition.disabled = saving || state.lookupBusy;
   for (const input of [elements.searchType, elements.searchNumber, elements.searchYear]) input.disabled = saving;
@@ -1474,6 +1515,7 @@ function setupEvents() {
   elements.dialog.addEventListener("close", cancelLookup);
   elements.filterForm.addEventListener("change", (event) => {
     // The search input already reloads on input; its blur must not start a second request.
+    if (event.target === elements.filterArea) limitResponsibleFilter(elements.filterArea, elements.filterResponsavel);
     if (event.target !== elements.filterQ) loadRecords();
   });
   elements.filterQ.addEventListener("input", () => {
@@ -1485,7 +1527,10 @@ function setupEvents() {
     state.recordsSearchTimer = window.setTimeout(() => loadRecords(), 260);
   });
   elements.filterForm.addEventListener("submit", (event) => event.preventDefault());
-  elements.totalsFilterForm.addEventListener("change", () => loadTotals());
+  elements.totalsFilterForm.addEventListener("change", (event) => {
+    if (event.target === elements.totalsFilterArea) limitResponsibleFilter(elements.totalsFilterArea, elements.totalsFilterResponsavel);
+    loadTotals();
+  });
   elements.totalsFilterForm.addEventListener("submit", (event) => event.preventDefault());
 
   elements.clearFilters.addEventListener("click", clearFilters);
@@ -1511,11 +1556,19 @@ function setupEvents() {
   initializeHistoryUI({ api, escapeHtml, formatDateTime, showToast, refreshData, labels });
 
   elements.recordsBody.addEventListener("click", (event) => {
+    const assignment = event.target.closest("[data-assignment-id]");
+    if (assignment) { openEditRecord(Number(assignment.dataset.assignmentId), "followup"); return; }
     const details = event.target.closest("[data-details-id]");
     if (details) openRecordDetails(Number(details.dataset.detailsId));
   });
 
   const detailsDialog = document.querySelector("#details-dialog");
+  document.querySelector("#details-assignment-warning").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-correct-assignment]");
+    if (!button) return;
+    detailsDialog.close();
+    openEditRecord(Number(button.dataset.correctAssignment), "followup");
+  });
   document.querySelector("#close-details").addEventListener("click", () => { state.detailsRequestId++; detailsDialog.close(); });
   closeOnBackdropClick(detailsDialog, () => detailsDialog.close());
   detailsDialog.querySelector(".record-tabs").addEventListener("click", (event) => {
@@ -1562,6 +1615,12 @@ function setupEvents() {
   }
 
   elements.form.addEventListener("submit", saveRecord);
+  elements.formArea.addEventListener("change", () => {
+    updateFormResponsible();
+    elements.formResponsible.classList.remove("is-invalid");
+    document.querySelector('[data-error-for="responsavel"]').textContent = "";
+  });
+  elements.formResponsible.addEventListener("change", () => updateFormResponsible());
   elements.nextStage.addEventListener("click", advanceToFollowup);
   elements.previousStage.addEventListener("click", () => showFormStep("project", true));
   elements.stepProject.addEventListener("click", () => showFormStep("project", true));
@@ -1620,6 +1679,7 @@ async function init() {
     const health = await api("/api/health");
     if (health.apiVersion !== 3) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
     state.parameters = await api("/api/parameters");
+    if (!state.parameters.responsaveisPorArea) throw new Error("Reinicie o sistema e recarregue esta página para usar a nova lista de áreas e responsáveis.");
     setupEvents();
     setupParameters();
     await Promise.all([loadRecords({ showLoading: true }), loadTotals()]);

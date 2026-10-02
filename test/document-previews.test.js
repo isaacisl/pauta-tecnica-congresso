@@ -8,7 +8,7 @@ import { createDocumentPreviews, convertWithLibreOffice, runOfficeProcess } from
 
 const pdf = Buffer.from("%PDF-1.4\npreview-test\n%%EOF");
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jhxoAAAAASUVORK5CYII=", "base64");
-const fields = { areaTecnica: "Educação", responsavel: "Beatriz Silva (Colaborador)", projeto: "PL 123/2026", ementa: "Teste de visualização", atualComissao: "", haParecer: "Não", sugestaoEmenda: "Não", posicionamento: "Favorável" };
+const fields = { areaTecnica: "Educação", responsavel: "Eduardo Santana", projeto: "PL 123/2026", ementa: "Teste de visualização", atualComissao: "", haParecer: "Não", sugestaoEmenda: "Não", posicionamento: "Favorável" };
 
 async function fixture(convertDocument) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pauta-preview-test-"));
@@ -114,7 +114,7 @@ test("não exibe anexos de outro registro, removidos ou na lixeira", async () =>
   const context = await fixture();
   try {
     const attachment = await context.upload("arquivo.pdf", pdf);
-    const other = context.app.database.create({ ...fields, responsavel: "Elena Garrido (Consultor)" });
+    const other = context.app.database.create({ ...fields, responsavel: "Zacarias Sousa" });
     assert.equal((await context.preview(attachment, other.id)).status, 404);
     assert.equal((await context.preview(attachment, 999999)).status, 404);
     const removed = context.app.database.removeAttachment(context.record.id, attachment.id, context.app.database.get(context.record.id).revision);
@@ -178,7 +178,9 @@ test("fila limita conversões diferentes e continua após uma falha", async () =
     assert.equal(results.filter(item => item.status === "rejected").length, 1);
     assert.equal(calls, 6);
     assert.equal(maximum, 1);
-    await service.get(attachments[1]);
+    // Filesystem completion can enqueue requests in a different order.
+    const requested = [attachments[0], ...attachments.slice(1, 6), attachments[0]];
+    await service.get(requested[results.findIndex(item => item.status === "rejected")]);
     assert.equal(calls, 7);
   } finally { release?.(); await context.close(); }
 });

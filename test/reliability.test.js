@@ -13,7 +13,7 @@ import { backupDatabase } from "../scripts/backup.js";
 import { startServer } from "../server.js";
 
 const official = { id: 123, source: "camara", siglaTipo: "PL", numero: 123, ano: 2026, projeto: "PL 123/2026", ementa: "Educação 📚", consultadoEm: new Date().toISOString() };
-const fields = { areaTecnica: "Educação", responsavel: "Beatriz Silva (Colaborador)", projeto: official.projeto, ementa: official.ementa, autor: "", despacho: "", atualComissao: "", haParecer: "Não", sugestaoEmenda: "Não", posicionamento: "Favorável", camara: official, proposition: official };
+const fields = { areaTecnica: "Educação", responsavel: "Eduardo Santana", projeto: official.projeto, ementa: official.ementa, autor: "", despacho: "", atualComissao: "", haParecer: "Não", sugestaoEmenda: "Não", posicionamento: "Favorável", camara: official, proposition: official };
 
 test("bloqueia edição e exclusão obsoletas sem apagar os dados de outra pessoa", () => {
   const db = createDatabase(":memory:");
@@ -86,7 +86,7 @@ test("remove e restaura somente o documento escolhido, com revisão e backup", a
     const second = (await (await upload("segundo.pdf", "%PDF-segundo")).json()).record;
     const firstId = first.attachments[0].id;
     const secondId = second.attachments[0].id;
-    const otherRecord = app.database.create({ ...fields, areaTecnica: "Finanças" });
+    const otherRecord = app.database.create({ ...fields, areaTecnica: "Finanças e Tributação", responsavel: "Alex Carneiro" });
     const change = (endpoint, method, revision) => fetch(`${app.url}${endpoint}`, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(revision === undefined ? {} : { revision })
     });

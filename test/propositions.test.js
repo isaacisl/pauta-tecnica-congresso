@@ -14,7 +14,7 @@ const senate = {
   idProcessoCasaInicial: 8862683, identificacaoProcessoInicial: "PL 7108/2017", siglaCasaIniciadora: "CD",
   outrosNumeros: [{ idOutroProcesso: 8862683, sigla: "PL", numero: "07108", ano: 2017, casaIdentificadora: "CD", externaAoCongresso: "Não" }]
 };
-const fields = { areaTecnica: "Educação", responsavel: "Beatriz Silva (Colaborador)", atualComissao: "Comissão manual", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável" };
+const fields = { areaTecnica: "Educação", responsavel: "Eduardo Santana", atualComissao: "Comissão manual", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável" };
 const query = (numero = 3361, ano = 2025) => new URLSearchParams({ siglaTipo: "PL", numero, ano });
 function setup({ collision = false, noRelation = false, senateDown = false, cameraAmbiguous = false } = {}) {
   const database = createDatabase(":memory:");
@@ -78,7 +78,7 @@ test("PL 3361/2025 resolve para PL 7108/2017; IDs ficam separados e cache persis
     assert.equal(reverseSelection.proposition.matterId, saved.matterId);
     const input = restarted.recordInput({ ...fields, propositionToken: reverseSelection.propositionToken });
     assert.throws(() => database.create(input), (error) => error.status === 409);
-    const otherArea = database.create({ ...input, areaTecnica: "Finanças" });
+    const otherArea = database.create({ ...input, areaTecnica: "Finanças e Tributação", responsavel: "Alex Carneiro" });
     assert.equal(otherArea.matterId, saved.matterId);
     assert.equal(database.list().length, 2);
     assert.equal(database.update(saved.id, { ...input, revision: saved.revision }).id, saved.id);

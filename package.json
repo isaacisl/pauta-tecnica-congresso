@@ -9,9 +9,9 @@
     "dev": "node --watch server.js",
     "test": "node --test",
     "backup": "node scripts/backup.js",
-    "check": "node --check server.js && node --check lib/database.js && node --check lib/document-previews.js && node --check lib/camara.js && node --check lib/proposition-types.js && node --check lib/senado.js && node --check lib/propositions.js && node --check lib/tramitations.js && node --check public/app.js && node --check public/document-preview.js && node --check public/pdf-preview.js && node --check public/official-links.js && node --check public/proposition-type-utils.js && node --check public/record-utils.js && node --check public/record-history.js && node --check scripts/backup.js"
+    "check": "node --check server.js && node --check lib/collaborators.js && node --check lib/database.js && node --check lib/document-previews.js && node --check lib/camara.js && node --check lib/proposition-types.js && node --check lib/senado.js && node --check lib/propositions.js && node --check lib/tramitations.js && node --check public/team-utils.js && node --check public/app.js && node --check public/document-preview.js && node --check public/pdf-preview.js && node --check public/official-links.js && node --check public/proposition-type-utils.js && node --check public/record-utils.js && node --check public/record-history.js && node --check scripts/backup.js"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.13.0"
   }
 }
