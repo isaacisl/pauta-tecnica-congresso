@@ -15,7 +15,7 @@ async function fixture(convertDocument) {
   const app = await startServer({ port: 0, databasePath: path.join(directory, "records.sqlite"), documentConverter: convertDocument, tramitationCheckDelayMs: null });
   const record = app.database.create(fields);
   async function upload(name, content) {
-    const response = await fetch(`${app.url}/api/records/${record.id}/attachments`, { method: "POST", headers: { "X-File-Name": encodeURIComponent(name) }, body: content });
+    const response = await fetch(`${app.url}/api/records/${record.id}/attachments`, { method: "POST", headers: { "X-File-Name": encodeURIComponent(name), "X-Document-Title": encodeURIComponent(name), "X-Document-Description": "Documento de teste" }, body: content });
     assert.equal(response.status, 201);
     const attachment = (await response.json()).record.attachments[0];
     return app.database.getAttachment(record.id, attachment.id);

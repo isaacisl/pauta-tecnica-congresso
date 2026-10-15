@@ -35,7 +35,7 @@ test("lixeira preserva anexos, elimina totais e impede restauração duplicada",
   const db = createDatabase(":memory:");
   try {
     const record = db.create(fields);
-    const uploaded = db.setAttachment(record.id, { name: "parecer.pdf", storedName: "teste.pdf", size: 10, mime: "application/pdf" });
+    const uploaded = db.setAttachment(record.id, { name: "parecer.pdf", storedName: "teste.pdf", size: 10, mime: "application/pdf", title: "Documento", description: "Documento de teste" });
     assert.equal(db.remove(record.id, uploaded.revision), true);
     assert.equal(db.get(record.id), null);
     assert.equal(db.totals().total, 0);
@@ -60,7 +60,7 @@ test("migração de documentos antigos preserva arquivos já cadastrados", async
   try {
     const original = createDatabase(filename);
     const record = original.create(fields);
-    original.setAttachment(record.id, { name: "antigo.pdf", storedName: "antigo.pdf", size: 10, mime: "application/pdf" });
+    original.setAttachment(record.id, { name: "antigo.pdf", storedName: "antigo.pdf", size: 10, mime: "application/pdf", title: "Documento", description: "Documento de teste" });
     original.close();
     const legacy = new DatabaseSync(filename);
     legacy.exec("ALTER TABLE record_attachments DROP COLUMN deleted_at");
@@ -80,7 +80,7 @@ test("remove e restaura somente o documento escolhido, com revisão e backup", a
   try {
     const record = app.database.create(fields);
     const upload = (name, content) => fetch(`${app.url}/api/records/${record.id}/attachments`, {
-      method: "POST", headers: { "X-File-Name": name }, body: Buffer.from(content)
+      method: "POST", headers: { "X-File-Name": name, "X-Document-Title": name, "X-Document-Description": "Documento de teste" }, body: Buffer.from(content)
     });
     const first = (await (await upload("primeiro.pdf", "%PDF-primeiro")).json()).record;
     const second = (await (await upload("segundo.pdf", "%PDF-segundo")).json()).record;
@@ -249,10 +249,10 @@ test("API protege versões, restaura arquivo e exporta Unicode sem fórmulas exe
   const app = await startServer({ port: 0, databasePath: path.join(directory, "db.sqlite"), tramitationCheckDelayMs: null });
   const request = (url, method, body) => fetch(`${app.url}${url}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   try {
-    assert.equal((await (await fetch(`${app.url}/api/health`)).json()).apiVersion, 3);
+    assert.equal((await (await fetch(`${app.url}/api/health`)).json()).apiVersion, 4);
     const record = app.database.create({ ...fields, despacho: '=HYPERLINK("https://example.invalid")' });
     assert.equal((await request(`/api/records/${record.id}`, "PUT", fields)).status, 428);
-    const upload = await fetch(`${app.url}/api/records/${record.id}/attachments`, { method: "POST", headers: { "X-File-Name": "teste.pdf" }, body: Buffer.from("%PDF-audit") });
+    const upload = await fetch(`${app.url}/api/records/${record.id}/attachments`, { method: "POST", headers: { "X-File-Name": "teste.pdf", "X-Document-Title": "Documento", "X-Document-Description": "Documento de teste" }, body: Buffer.from("%PDF-audit") });
     const uploaded = (await upload.json()).record;
     assert.equal((await request(`/api/records/${record.id}`, "DELETE", { revision: record.revision })).status, 409);
     assert.equal((await request(`/api/records/${record.id}`, "DELETE", { revision: uploaded.revision })).status, 200);
@@ -263,7 +263,7 @@ test("API protege versões, restaura arquivo e exporta Unicode sem fórmulas exe
     const csv = await (await request("/api/export.csv", "POST", { password: "CentralDeDados2026" })).text();
     assert.match(csv, /Educação 📚/);
     assert.match(csv, /"'=HYPERLINK/);
-    assert.equal((await (await fetch(`${app.url}/api/records/${record.id}/history`)).json()).history.length, 3);
+    assert.equal((await (await fetch(`${app.url}/api/records/${record.id}/history`)).json()).history.length, 4);
   } finally { await app.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
@@ -275,14 +275,14 @@ test("backup consistente restaura banco, histórico e anexos inclusive da lixeir
     const record = db.create(fields);
     await mkdir(path.join(directory, "uploads"));
     await writeFile(path.join(directory, "uploads", "file.pdf"), "%PDF-test");
-    const uploaded = db.setAttachment(record.id, { name: "doc.pdf", storedName: "file.pdf", size: 9, mime: "application/pdf" });
+    const uploaded = db.setAttachment(record.id, { name: "doc.pdf", storedName: "file.pdf", size: 9, mime: "application/pdf", title: "Documento", description: "Documento de teste" });
     db.remove(record.id, uploaded.revision);
     const destination = await backupDatabase(filename, path.join(directory, "backups"));
     assert.equal(await readFile(path.join(destination, "uploads", "file.pdf"), "utf8"), "%PDF-test");
     const restored = createDatabase(path.join(destination, "registros.sqlite"));
     try {
       assert.equal(restored.trash().length, 1);
-      assert.equal(restored.history(record.id).length, 2);
+      assert.equal(restored.history(record.id).length, 3);
       assert.equal(restored.restore(record.id, restored.trash()[0].revision).attachments.length, 1);
     } finally { restored.close(); }
     await assert.rejects(backupDatabase(path.join(directory, "missing.sqlite"), path.join(directory, "backups")));

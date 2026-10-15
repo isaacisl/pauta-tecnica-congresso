@@ -193,7 +193,8 @@ test("acrescenta documentos ao histórico, preserva downloads e evita duplicaç�
     method: "POST",
     headers: {
       "Content-Type": "application/pdf",
-      "X-File-Name": encodeURIComponent("parecer técnico.pdf")
+      "X-File-Name": encodeURIComponent("parecer técnico.pdf"),
+      "X-Document-Title": "Parecer tecnico", "X-Document-Description": "Documento de teste"
     },
     body: file
   });
@@ -215,7 +216,7 @@ test("acrescenta documentos ao histórico, preserva downloads e evita duplicaç�
 
   const secondFile = Buffer.from("%PDF-1.7\nsegunda versão\n");
   const upload = () => request(`/api/records/${record.id}/attachments`, {
-    method: "POST", headers: { "X-File-Name": encodeURIComponent("parecer técnico.pdf"), "X-Upload-Id": "11111111-1111-4111-8111-111111111111" }, body: secondFile
+    method: "POST", headers: { "X-File-Name": encodeURIComponent("parecer técnico.pdf"), "X-Upload-Id": "11111111-1111-4111-8111-111111111111", "X-Document-Title": "Segundo parecer", "X-Document-Description": "Segunda versao do parecer" }, body: secondFile
   });
   const uploads = await Promise.all([upload(), upload()]);
   assert(uploads.every(response => [200, 201].includes(response.status)));

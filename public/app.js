@@ -1,6 +1,9 @@
 import { officialLinks } from "./official-links.js";
 import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
-import { initializeHistoryUI } from "./record-history.js?v=20261001-2";
+import { initializeHistoryUI } from "./record-history.js?v=20261015-1";
+import { documentMetadataErrors } from "./document-utils.js?v=20261015-1";
+import { initializeDocumentInfo } from "./document-info.js?v=20261015-1";
+import { recordSortOptions, sortRecords } from "./record-sort.js?v=20261015-1";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
 import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261002-7";
@@ -17,10 +20,12 @@ const state = {
   records: [],
   recordsPage: 1,
   recordsPageSize: 10,
+  recordsSort: "created-desc",
   recordsFilterKey: null,
   recordsLoading: false,
   recordsSearchTimer: null,
   pendingAttachments: [],
+  savedAttachments: [],
   totals: null,
   requestId: 0,
   totalsRequestId: 0,
@@ -67,6 +72,10 @@ const elements = {
   tableLoading: document.querySelector("#table-loading"),
   tableWrapper: document.querySelector("#table-wrapper"),
   recordsBody: document.querySelector("#records-body"),
+  sortControl: document.querySelector("#records-sort-control"),
+  sortButton: document.querySelector("#records-sort-button"),
+  sortOptions: document.querySelector("#records-sort-options"),
+  sortLabel: document.querySelector("#records-sort-label"),
   pagination: document.querySelector("#records-pagination"),
   pageSize: document.querySelector("#records-page-size"),
   pageRange: document.querySelector("#records-page-range"),
@@ -444,6 +453,7 @@ function renderPagination() {
 
 function setRecordsLoading(loading) {
   state.recordsLoading = loading;
+  elements.sortButton.disabled = loading;
   elements.tableWrapper.setAttribute("aria-busy", String(loading));
   elements.tableWrapper.inert = loading;
   renderPagination();
@@ -459,8 +469,19 @@ function changeRecordsPage(action) {
   document.querySelector("#table-title").scrollIntoView({ block: "start", behavior: "instant" });
 }
 
+function setSortMenuOpen(open, returnFocus = false) {
+  elements.sortOptions.hidden = !open;
+  elements.sortButton.setAttribute("aria-expanded", String(open));
+  if (open) elements.sortOptions.querySelector("input:checked").focus();
+  else if (returnFocus) elements.sortButton.focus();
+}
+
 function renderRecords() {
-  const records = state.records;
+  const records = sortRecords(state.records, state.recordsSort);
+  elements.sortLabel.textContent = recordSortOptions[state.recordsSort];
+  for (const [field, id] of [["created", "created-date-heading"], ["edited", "edited-date-heading"]]) {
+    document.querySelector(`#${id}`).setAttribute("aria-sort", state.recordsSort.startsWith(field) ? state.recordsSort.endsWith("asc") ? "ascending" : "descending" : "none");
+  }
   renderPagination();
   const offset = (state.recordsPage - 1) * state.recordsPageSize;
   elements.recordsBody.innerHTML = records.slice(offset, offset + state.recordsPageSize)
@@ -484,6 +505,9 @@ function renderRecords() {
             ${escapeHtml(formatDate(record.createdAt))}
           </time>
         </td>
+      `);
+      cells.push(`
+        <td data-label="Última edição">${record.editedAt ? `<time class="table-date" datetime="${escapeHtml(record.editedAt)}" title="${escapeHtml(formatDateTime(record.editedAt))}">${escapeHtml(formatDate(record.editedAt))}</time>` : '<span class="table-date">Sem edição</span>'}</td>
       `);
       cells.push(`
         <td data-label="Ações">
@@ -761,6 +785,7 @@ function formatFileSize(bytes) {
 }
 
 function renderExistingAttachment(record) {
+  state.savedAttachments = record?.attachments || [];
   elements.existingAttachment.hidden = !(record?.attachments?.length || record?.removedAttachments?.length);
   elements.attachmentHistory.innerHTML = record ? attachmentHistoryMarkup(record, true) : "";
 }
@@ -768,8 +793,9 @@ function renderExistingAttachment(record) {
 function attachmentHistoryMarkup(record, editable = false) {
   const active = record.attachments || [];
   const removed = record.removedAttachments || [];
-  const activeMarkup = active.length ? `<ul class="document-list">${active.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(formatFileSize(file.size))} · ${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))}` : "Data de inclusão não registrada (arquivo anterior ao histórico)"}</small>${!supportsDocumentPreview(file.name) ? '<small>Para abrir este formato, use Baixar.</small>' : ""}</div><span class="document-actions">${supportsDocumentPreview(file.name) ? `<button type="button" class="text-button" data-preview-record="${record.id}" data-preview-attachment="${file.id}" data-preview-name="${escapeHtml(file.name)}" aria-label="Visualizar ${escapeHtml(file.name)}">Visualizar</button>` : ""}<a class="text-button attachment-link" href="/api/records/${record.id}/attachments/${file.id}" aria-label="Baixar ${escapeHtml(file.name)}">Baixar</a>${editable ? `<button type="button" class="text-button attachment-remove" data-remove-attachment="${file.id}" aria-label="Excluir ${escapeHtml(file.name)}">Excluir</button>` : ""}</span></li>`).join("")}</ul>` : '<p class="document-empty">Nenhum documento ativo.</p>';
-  const removedMarkup = removed.length ? `<details class="removed-documents"><summary>Documentos removidos (${removed.length})</summary><ul class="document-list">${removed.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.name)}</strong><small>${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))} · ` : ""}Removido em ${escapeHtml(formatDateTime(file.deletedAt))}</small></div>${editable ? `<button type="button" class="text-button" data-restore-attachment="${file.id}" aria-label="Restaurar ${escapeHtml(file.name)}">Restaurar</button>` : ""}</li>`).join("")}</ul></details>` : "";
+  const description = file => `${file.description ? `<p class="document-description">${escapeHtml(file.description)}</p>` : '<small>Descrição não informada (documento anterior a esta opção).</small>'}${file.title ? `<small>Arquivo: ${escapeHtml(file.name)}</small>` : ""}`;
+  const activeMarkup = active.length ? `<ul class="document-list">${active.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.title || file.name)}</strong>${description(file)}<small>${escapeHtml(formatFileSize(file.size))} · ${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))}` : "Data de inclusão não registrada (arquivo anterior ao histórico)"}</small>${file.metadataUpdatedAt ? `<small>Informações editadas em ${escapeHtml(formatDateTime(file.metadataUpdatedAt))}</small>` : ""}${!supportsDocumentPreview(file.name) ? '<small>Para abrir este formato, use Baixar.</small>' : ""}</div><span class="document-actions">${supportsDocumentPreview(file.name) ? `<button type="button" class="text-button" data-preview-record="${record.id}" data-preview-attachment="${file.id}" data-preview-name="${escapeHtml(file.name)}" aria-label="Visualizar ${escapeHtml(file.title || file.name)}">Visualizar</button>` : ""}<a class="text-button attachment-link" href="/api/records/${record.id}/attachments/${file.id}" aria-label="Baixar ${escapeHtml(file.title || file.name)}">Baixar</a>${editable ? `<button type="button" class="text-button" data-edit-document="${file.id}">${file.title && file.description ? "Editar informações" : "Completar informações"}</button><button type="button" class="text-button attachment-remove" data-remove-attachment="${file.id}" aria-label="Excluir ${escapeHtml(file.title || file.name)}">Excluir</button>` : ""}</span></li>`).join("")}</ul>` : '<p class="document-empty">Nenhum documento ativo.</p>';
+  const removedMarkup = removed.length ? `<details class="removed-documents"><summary>Documentos removidos (${removed.length})</summary><ul class="document-list">${removed.map(file => `<li class="document-item"><div><strong>${escapeHtml(file.title || file.name)}</strong>${description(file)}<small>${file.createdAt ? `Adicionado em ${escapeHtml(formatDateTime(file.createdAt))} · ` : ""}Removido em ${escapeHtml(formatDateTime(file.deletedAt))}</small></div>${editable ? `<button type="button" class="text-button" data-restore-attachment="${file.id}" aria-label="Restaurar ${escapeHtml(file.title || file.name)}">Restaurar</button>` : ""}</li>`).join("")}</ul></details>` : "";
   return activeMarkup + removedMarkup;
 }
 
@@ -804,7 +830,7 @@ async function changeAttachment(button, remove) {
 
 function renderPendingAttachments() {
   elements.pendingAttachments.hidden = !state.pendingAttachments.length;
-  elements.pendingAttachments.innerHTML = state.pendingAttachments.map((item, index) => `<li class="document-item"><div><strong>${escapeHtml(item.file.name)}</strong><small>${escapeHtml(formatFileSize(item.file.size))} · Aguardando salvar</small></div><button type="button" class="text-button" data-remove-pending="${index}" aria-label="Retirar ${escapeHtml(item.file.name)} da seleção">Retirar</button></li>`).join("");
+  elements.pendingAttachments.innerHTML = state.pendingAttachments.map((item, index) => `<li class="document-item pending-document"><div class="pending-document-heading"><div><strong>${escapeHtml(item.file.name)}</strong><small>${escapeHtml(formatFileSize(item.file.size))} · Aguardando salvar</small></div><button type="button" class="text-button" data-remove-pending="${index}" aria-label="Retirar ${escapeHtml(item.file.name)} da seleção">Retirar</button></div><div class="pending-document-fields"><label class="field"><span>Título <b aria-hidden="true">*</b></span><input type="text" maxlength="180" data-pending-index="${index}" data-document-field="title" aria-label="Título de ${escapeHtml(item.file.name)}" value="${escapeHtml(item.title)}" required /></label><label class="field"><span>Descrição <b aria-hidden="true">*</b></span><textarea rows="3" maxlength="4000" data-pending-index="${index}" data-document-field="description" aria-label="Descrição de ${escapeHtml(item.file.name)}" required>${escapeHtml(item.description)}</textarea><small class="field-help">Explique o conteúdo e a finalidade deste documento.</small></label></div></li>`).join("");
 }
 
 function queueAttachments() {
@@ -815,7 +841,7 @@ function queueAttachments() {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
     const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
     const uploadKey = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-    state.pendingAttachments.push({ file, uploadKey });
+    state.pendingAttachments.push({ file, uploadKey, title: "", description: "" });
   }
   elements.attachmentInput.value = "";
   renderPendingAttachments();
@@ -849,21 +875,25 @@ function renderRecordHistory(record) {
 
 function attachmentValidationMessage(file) {
   if (!file) return "";
+  if (!file.size) return "O arquivo selecionado está vazio. Escolha um documento com conteúdo.";
   const allowedExtension = /\.(pdf|doc|docx|odt|rtf|txt|xls|xlsx|ppt|pptx|jpe?g|png)$/i;
   if (!allowedExtension.test(file.name)) return "Formato não permitido. Selecione um PDF, documento do Office, texto ou imagem.";
   if (file.size > 20 * 1024 * 1024) return "O arquivo deve ter no máximo 20 MB.";
   return "";
 }
 
-async function uploadAttachment(recordId, file, uploadKey) {
+async function uploadAttachment(recordId, item) {
+  const { file, uploadKey, title, description } = item;
+  const body = new FormData();
+  body.append("file", file);
+  body.append("title", title);
+  body.append("description", description);
   const response = await fetch(`/api/records/${recordId}/attachments`, {
     method: "POST",
     headers: {
-      "Content-Type": file.type || "application/octet-stream",
-      "X-File-Name": encodeURIComponent(file.name),
       "X-Upload-Id": uploadKey
     },
-    body: file
+    body
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -1210,7 +1240,7 @@ function recordFormSnapshot() {
     fields,
     search: [elements.searchType.value, elements.searchNumber.value, elements.searchYear.value],
     proposition: state.proposition,
-    attachments: state.pendingAttachments.map(item => item.uploadKey)
+    attachments: state.pendingAttachments.map(item => [item.uploadKey, item.title, item.description])
   });
 }
 
@@ -1266,7 +1296,7 @@ function setSaving(saving) {
   elements.closeDialog.disabled = saving;
   elements.attachmentInput.disabled = saving;
   for (const button of [elements.previousStage, elements.nextStage, elements.stepProject, elements.stepFollowup]) button.disabled = saving;
-  for (const button of elements.pendingAttachments.querySelectorAll("button")) button.disabled = saving;
+  for (const control of elements.pendingAttachments.querySelectorAll("button, input, textarea")) control.disabled = saving;
   for (const button of elements.attachmentHistory.querySelectorAll("button")) button.disabled = saving;
   elements.saveLabel.hidden = saving;
   elements.saveLoading.hidden = !saving;
@@ -1298,6 +1328,14 @@ async function saveRecord(event) {
     elements.attachmentInput.focus();
     return;
   }
+  const missingMetadata = state.pendingAttachments.findIndex(item => Object.keys(documentMetadataErrors(item)).length);
+  if (missingMetadata !== -1) {
+    showToast("Informe título e descrição para cada documento. Não use apenas espaços.", "error");
+    const item = state.pendingAttachments[missingMetadata];
+    const field = documentMetadataErrors(item).title ? "title" : "description";
+    elements.pendingAttachments.querySelector(`[data-pending-index="${missingMetadata}"][data-document-field="${field}"]`).focus();
+    return;
+  }
 
   const id = elements.form.elements.id.value;
   let savedRecord = null;
@@ -1321,7 +1359,7 @@ async function saveRecord(event) {
     }
     while (state.pendingAttachments.length) {
       const item = state.pendingAttachments[0];
-      savedRecord = await uploadAttachment(result.record.id, item.file, item.uploadKey);
+      savedRecord = await uploadAttachment(result.record.id, item);
       state.editingRevision = savedRecord.revision;
       state.pendingAttachments.shift();
       renderExistingAttachment(savedRecord);
@@ -1485,6 +1523,34 @@ function closeOnBackdropClick(dialog, closeHandler) {
 }
 
 function setupEvents() {
+  elements.sortButton.addEventListener("click", () => setSortMenuOpen(elements.sortOptions.hidden));
+  elements.sortOptions.addEventListener("change", event => {
+    if (!Object.hasOwn(recordSortOptions, event.target.value)) return;
+    state.recordsSort = event.target.value;
+    state.recordsPage = 1;
+    renderRecords();
+    setSortMenuOpen(false, true);
+  });
+  document.addEventListener("click", event => {
+    if (!elements.sortControl.contains(event.target)) setSortMenuOpen(false);
+  });
+  elements.sortControl.addEventListener("keydown", event => {
+    if (event.key === "Escape") { event.preventDefault(); setSortMenuOpen(false, true); }
+  });
+  const documentInfo = initializeDocumentInfo({ api, formatDateTime, showToast, closeOnBackdropClick,
+    getRevision: () => state.editingRevision,
+    onSaved: async record => {
+      state.editingRevision = record.revision;
+      renderExistingAttachment(record);
+      renderRecordHistory(record);
+      await refreshData();
+    },
+    onConflict: failure => {
+      const warning = document.querySelector("#record-conflict");
+      warning.textContent = failure.message;
+      warning.hidden = false;
+    }
+  });
   elements.searchProposition.addEventListener("click", searchPropositions);
   elements.searchType.addEventListener("input", () => {
     elements.searchType.value = elements.searchType.value.toLocaleUpperCase("pt-BR");
@@ -1638,6 +1704,12 @@ function setupEvents() {
   elements.attachmentInput.addEventListener("change", queueAttachments);
   initializeDocumentPreview({ containers: [elements.attachmentHistory, document.querySelector("#details-panel-followup")], closeOnBackdropClick });
   elements.attachmentHistory.addEventListener("click", (event) => {
+    const edit = event.target.closest("[data-edit-document]");
+    if (edit && !edit.disabled) {
+      const file = state.savedAttachments.find(item => item.id === Number(edit.dataset.editDocument));
+      if (file) documentInfo.open(Number(elements.form.elements.id.value), file);
+      return;
+    }
     const remove = event.target.closest("[data-remove-attachment]");
     const restore = event.target.closest("[data-restore-attachment]");
     if (remove || restore) changeAttachment(remove || restore, Boolean(remove));
@@ -1647,6 +1719,11 @@ function setupEvents() {
     if (!button || elements.attachmentInput.disabled) return;
     state.pendingAttachments.splice(Number(button.dataset.removePending), 1);
     renderPendingAttachments();
+  });
+  elements.pendingAttachments.addEventListener("input", event => {
+    const field = event.target.dataset.documentField;
+    const item = state.pendingAttachments[Number(event.target.dataset.pendingIndex)];
+    if (item && ["title", "description"].includes(field)) item[field] = event.target.value;
   });
   elements.closeDialog.addEventListener("click", closeDialog);
   elements.cancelDialog.addEventListener("click", closeDialog);
@@ -1686,7 +1763,7 @@ function setupEvents() {
 async function init() {
   try {
     const health = await api("/api/health");
-    if (health.apiVersion !== 3) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
+    if (health.apiVersion !== 4) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
     state.parameters = await api("/api/parameters");
     if (!state.parameters.responsaveisPorArea) throw new Error("Reinicie o sistema e recarregue esta página para usar a nova lista de áreas e responsáveis.");
     setupEvents();

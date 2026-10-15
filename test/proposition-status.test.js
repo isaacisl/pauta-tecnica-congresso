@@ -138,7 +138,7 @@ test("relação oficial posterior une identidades antes separadas sem apagar reg
       const selection = await first.select(id, found.searchToken);
       saved.push(database.create(first.recordInput({ ...fields, propositionToken: selection.propositionToken })));
     }
-    database.setAttachment(saved[1].id, { name: "original.pdf", storedName: "original-stored.pdf", mime: "application/pdf", size: 123 });
+    saved[1] = database.setAttachment(saved[1].id, { name: "original.pdf", storedName: "original-stored.pdf", mime: "application/pdf", size: 123, title: "Documento", description: "Documento de teste" });
     const cameraMatter = database.getMatterByCamaraId(123);
     const senateMatter = database.getMatterBySenadoId(123);
     assert.notEqual(cameraMatter.id, senateMatter.id);
@@ -191,7 +191,7 @@ test("migração do schema Câmara obrigatório mantém chaves estrangeiras e re
   let db = createDatabase(file);
   const camara = { id: 123, siglaTipo: "PL", numero: 1234, ano: 2020, projeto: "PL 1234/2020", ementa: "Ementa", consultadoEm: new Date().toISOString() };
   const before = db.create({ ...fields, projeto: camara.projeto, ementa: camara.ementa, camara });
-  db.setAttachment(before.id, { name: "anexo.pdf", storedName: "real.pdf", mime: "application/pdf", size: 12 });
+  db.setAttachment(before.id, { name: "anexo.pdf", storedName: "real.pdf", mime: "application/pdf", size: 12, title: "Documento", description: "Documento de teste" });
   db.close();
   let sqlite = new DatabaseSync(file);
   sqlite.exec(`PRAGMA foreign_keys = OFF;

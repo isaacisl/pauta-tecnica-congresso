@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261002-7" />
+    <link rel="stylesheet" href="/styles.css?v=20261015-2" />
   </head>
   <body>
     <header class="app-header">
@@ -116,7 +116,24 @@
               <span class="section-kicker">Base de dados</span>
               <h2 id="table-title">Lista de registros</h2>
             </div>
-            <span id="record-count-label" class="count-pill">0 registros</span>
+            <div class="table-tools">
+              <span id="record-count-label" class="count-pill">0 registros</span>
+              <div id="records-sort-control" class="sort-control">
+                <button id="records-sort-button" class="button button-secondary sort-button" type="button" aria-expanded="false" aria-controls="records-sort-options">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4" /></svg>
+                  <span>Classificar<small id="records-sort-label">Inclusão · mais recentes</small></span>
+                </button>
+                <fieldset id="records-sort-options" class="sort-options" hidden>
+                  <legend class="sr-only">Classificação dos registros</legend>
+                  <strong>Classificar por data</strong>
+                  <label><input type="radio" name="records-sort" value="created-desc" checked /> Inclusão: mais recentes primeiro</label>
+                  <label><input type="radio" name="records-sort" value="created-asc" /> Inclusão: mais antigas primeiro</label>
+                  <label><input type="radio" name="records-sort" value="edited-desc" /> Edição: mais recentes primeiro</label>
+                  <label><input type="radio" name="records-sort" value="edited-asc" /> Edição: mais antigas primeiro</label>
+                  <small>Registros sem edição ficam no final ao classificar por edição.</small>
+                </fieldset>
+              </div>
+            </div>
           </div>
 
           <div id="table-loading" class="loading-state" aria-live="polite">
@@ -132,7 +149,8 @@
                   <th>Responsável</th>
                   <th>Projeto</th>
                   <th>Posicionamento</th>
-                  <th>Data de inclusão</th>
+                  <th id="created-date-heading" aria-sort="descending">Data de inclusão</th>
+                  <th id="edited-date-heading" aria-sort="none">Última edição</th>
                   <th><span class="sr-only">Ações</span></th>
                 </tr>
               </thead>
@@ -432,7 +450,7 @@
                 multiple
                 accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
               />
-              <small class="field-help">Selecione um ou mais arquivos. Máximo de 20 MB por arquivo. Depois de salvar, você pode remover ou restaurar cada documento.</small>
+              <small class="field-help">Selecione um ou mais arquivos e informe título e descrição para cada um. Máximo de 20 MB por arquivo.</small>
             </label>
             <ul id="pending-attachments" class="document-list" aria-label="Documentos aguardando envio" hidden></ul>
             <div id="existing-attachment" hidden>
@@ -486,6 +504,22 @@
             <span class="button-loading" hidden><span class="spinner spinner-small"></span> Salvando…</span>
           </button>
         </div>
+      </form>
+    </dialog>
+
+    <dialog id="document-info-dialog" class="record-dialog document-info-dialog" aria-labelledby="document-info-title">
+      <form id="document-info-form">
+        <div class="dialog-header">
+          <div><p class="eyebrow">Documento do acompanhamento</p><h2 id="document-info-title">Informações do documento</h2></div>
+          <button id="close-document-info" class="icon-button" type="button" aria-label="Fechar informações do documento">✕</button>
+        </div>
+        <div class="dialog-body document-info-fields">
+          <p id="document-info-original" class="document-original"></p>
+          <label class="field"><span>Título <b aria-hidden="true">*</b></span><input id="document-info-name" name="title" type="text" maxlength="180" required /></label>
+          <label class="field"><span>Descrição <b aria-hidden="true">*</b></span><textarea id="document-info-description" name="description" rows="5" maxlength="4000" required></textarea><small class="field-help">Explique o conteúdo e a finalidade deste documento.</small></label>
+          <p id="document-info-error" class="field-error" role="alert" hidden></p>
+        </div>
+        <div class="dialog-footer"><span class="footer-spacer"></span><button id="cancel-document-info" class="button button-ghost" type="button">Cancelar</button><button id="save-document-info" class="button button-primary" type="submit">Salvar informações</button></div>
       </form>
     </dialog>
 
@@ -554,6 +588,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261002-7"></script>
+    <script type="module" src="/app.js?v=20261015-2"></script>
   </body>
 </html>

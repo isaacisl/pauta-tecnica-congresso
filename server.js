@@ -3,7 +3,7 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createDatabase, ValidationError } from "./lib/database.js";
+import { createDatabase, ValidationError, validateDocumentMetadata } from "./lib/database.js";
 import { parameters } from "./lib/parameters.js";
 import { propositionTypes } from "./lib/proposition-types.js";
 import { createPropositionService } from "./lib/propositions.js";
@@ -116,8 +116,7 @@ async function readBinary(request, maxSize = maxAttachmentSize) {
   return Buffer.concat(chunks);
 }
 
-function attachmentDetails(request) {
-  const encodedName = request.headers["x-file-name"];
+function attachmentDetails(request, encodedName = request.headers["x-file-name"]) {
   if (typeof encodedName !== "string" || !encodedName) {
     const error = new Error("Nome do arquivo não informado.");
     error.status = 400;
@@ -141,6 +140,35 @@ function attachmentDetails(request) {
     throw error;
   }
   return { name, extension, mime: attachmentTypes[extension] };
+}
+
+async function readDocumentUpload(request) {
+  const contentType = request.headers["content-type"] || "";
+  if (/^multipart\/form-data(?:;|$)/i.test(contentType)) {
+    const body = await readBinary(request, maxAttachmentSize + 64 * 1024);
+    let form;
+    try { form = await new Response(body, { headers: { "Content-Type": contentType } }).formData(); }
+    catch { throw Object.assign(new Error("Não foi possível ler o documento enviado. Selecione o arquivo novamente."), { status: 400 }); }
+    if ([...form.keys()].some(key => !["file", "title", "description"].includes(key))
+      || ["file", "title", "description"].some(key => form.getAll(key).length > 1)) {
+      throw Object.assign(new Error("Envie um arquivo, um título e uma descrição por documento."), { status: 400 });
+    }
+    const document = form.get("file");
+    if (!document || typeof document.arrayBuffer !== "function" || !document.size) throw Object.assign(new Error("Selecione um arquivo para enviar."), { status: 400 });
+    if (document.size > maxAttachmentSize) throw Object.assign(new Error("O arquivo deve ter no máximo 20 MB."), { status: 413 });
+    const details = attachmentDetails(request, encodeURIComponent(document.name));
+    const metadata = validateDocumentMetadata({ title: form.get("title"), description: form.get("description") });
+    return { details, metadata, file: Buffer.from(await document.arrayBuffer()) };
+  }
+  // Support binary API clients only when they also supply the required metadata.
+  const details = attachmentDetails(request);
+  const fields = {};
+  for (const field of ["title", "description"]) {
+    try { fields[field] = decodeURIComponent(request.headers[`x-document-${field}`] || ""); }
+    catch { throw Object.assign(new Error("Título ou descrição do documento inválidos."), { status: 400 }); }
+  }
+  const metadata = validateDocumentMetadata(fields);
+  return { details, metadata, file: await readBinary(request) };
 }
 
 async function removeStoredAttachment(uploadDirectory, storedName) {
@@ -239,7 +267,7 @@ export async function startServer({
       const { pathname } = url;
 
       if (pathname === "/api/health" && request.method === "GET") {
-        send(response, 200, { status: "ok", apiVersion: 3 });
+        send(response, 200, { status: "ok", apiVersion: 4 });
         return;
       }
 
@@ -360,17 +388,22 @@ export async function startServer({
         }
 
         if (request.method === "POST" && attachmentId === null) {
-          const details = attachmentDetails(request);
           const uploadKey = request.headers["x-upload-id"] || null;
           if (uploadKey && (typeof uploadKey !== "string" || !/^[a-f0-9-]{36}$/i.test(uploadKey))) {
             sendError(response, 400, "Identificador de envio inválido.");
             return;
           }
-          const file = await readBinary(request);
-          if (uploadKey && database.findAttachmentUpload(id, uploadKey)) {
+          const { details, metadata, file } = await readDocumentUpload(request);
+          const sendExistingUpload = () => {
+            const existing = uploadKey && database.findAttachmentUpload(id, uploadKey);
+            if (!existing) return false;
+            if (existing.deletedAt || existing.title !== metadata.title || existing.description !== metadata.description) {
+              throw Object.assign(new Error("Este documento já foi enviado com outros dados ou foi removido. Reabra o registro para conferir antes de tentar novamente."), { status: 409 });
+            }
             send(response, 200, { record: database.get(id) });
-            return;
-          }
+            return true;
+          };
+          if (sendExistingUpload()) return;
           const storedName = `${randomUUID()}${details.extension}`;
           const storedPath = path.join(uploadDirectory, storedName);
           await writeFile(storedPath, file, { flag: "wx" });
@@ -380,18 +413,23 @@ export async function startServer({
               storedName,
               mime: details.mime,
               size: file.length,
-              uploadKey
+              uploadKey,
+              ...metadata
             });
             if (!updatedRecord) throw Object.assign(new Error("Registro não encontrado."), { status: 404 });
             send(response, 201, { record: updatedRecord });
           } catch (error) {
             await removeStoredAttachment(uploadDirectory, storedName);
-            if (uploadKey && database.findAttachmentUpload(id, uploadKey)) {
-              send(response, 200, { record: database.get(id) });
-              return;
-            }
+            if (sendExistingUpload()) return;
             throw error;
           }
+          return;
+        }
+
+        if (request.method === "PUT" && attachmentId !== null) {
+          const updatedRecord = database.updateAttachmentMetadata(id, attachmentId, await readJson(request));
+          if (!updatedRecord) sendError(response, 404, "Documento não encontrado neste registro.");
+          else send(response, 200, { record: updatedRecord });
           return;
         }
 

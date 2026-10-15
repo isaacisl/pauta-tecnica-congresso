@@ -71,7 +71,7 @@ async function legacyFixture() {
   const first = db.create(fields);
   const second = db.create({ ...fields, areaTecnica: "Central de Dados", responsavel: "Luidy Santos", projeto: "PL 200/2026" });
   const third = db.create({ ...fields, responsavel: "Zacarias Sousa", projeto: "PL 300/2026" });
-  db.setAttachment(first.id, { name: "parecer.pdf", storedName: "fixture.pdf", mime: "application/pdf", size: 5 });
+  db.setAttachment(first.id, { name: "parecer.pdf", storedName: "fixture.pdf", mime: "application/pdf", size: 5, title: "Documento", description: "Documento de teste" });
   db.close();
   const raw = new DatabaseSync(databasePath);
   raw.prepare("UPDATE records SET responsavel = ? WHERE id = ?").run("Beatriz Silva (Colaborador)", first.id);
@@ -177,7 +177,7 @@ test("áreas renomeadas e consultores antigos são reconhecidos em registros, fi
     const planning = db.create({ ...fields, areaTecnica: "Planejamento Territorial e Habitação", responsavel: "Jordan Cabral", projeto: "PL 102/2026" });
     const consultant = db.create({ ...fields, areaTecnica: "Consultor", responsavel: "Arthur Trindade", projeto: "PL 103/2026" });
     const legacyConsultant = db.create({ ...fields, areaTecnica: "Consultor", responsavel: "Eudes Sippel", projeto: "PL 104/2026" });
-    db.setAttachment(sustainability.id, { name: "parecer.pdf", storedName: "fixture.pdf", mime: "application/pdf", size: 5 });
+    db.setAttachment(sustainability.id, { name: "parecer.pdf", storedName: "fixture.pdf", mime: "application/pdf", size: 5, title: "Documento", description: "Documento de teste" });
     const revision = db.get(sustainability.id).revision;
     const history = db.history(sustainability.id).length;
     db.close();

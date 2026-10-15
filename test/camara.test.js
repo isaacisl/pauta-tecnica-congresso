@@ -130,7 +130,7 @@ test("migração preserva registros antigos e seus metadados de anexos", async (
   const file = path.join(directory, "legacy.sqlite");
   let db = createDatabase(file);
   const legacy = db.create(fields);
-  db.setAttachment(legacy.id, { name: "documento.pdf", storedName: "original.pdf", mime: "application/pdf", size: 42 });
+  db.setAttachment(legacy.id, { name: "documento.pdf", storedName: "original.pdf", mime: "application/pdf", size: 42, title: "Documento", description: "Documento de teste" });
   db.close();
   const sqlite = new DatabaseSync(file);
   sqlite.exec("ALTER TABLE records DROP COLUMN camara_json");

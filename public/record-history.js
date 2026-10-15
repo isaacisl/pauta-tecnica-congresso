@@ -34,11 +34,13 @@ export function initializeHistoryUI({ api, escapeHtml, formatDateTime, showToast
     try {
       const { history } = await api(`/api/records/${id}/history`);
       if (details.dataset.recordId !== id || !details.open) return;
-      const actionNames = { created: "Inclusão", updated: "Edição", deleted: "Exclusão", restored: "Restauração", attachment_removed: "Documento removido", attachment_restored: "Documento restaurado" };
+      const actionNames = { created: "Inclusão", updated: "Edição", deleted: "Exclusão", restored: "Restauração", attachment_added: "Documento adicionado", attachment_updated: "Informações do documento editadas", attachment_removed: "Documento removido", attachment_restored: "Documento restaurado" };
       document.querySelector("#record-change-history").innerHTML = history.length ? history.map(entry => {
-        const changes = entry.action === "updated" ? labels.filter(([, field]) => entry.before?.[field] !== entry.after?.[field]) : [];
+        const documentChanges = [["Título", "title"], ["Descrição", "description"]];
+        const changes = (entry.action === "updated" ? labels : entry.action === "attachment_updated" ? documentChanges : []).filter(([, field]) => entry.before?.[field] !== entry.after?.[field]);
         return `<article class="change-entry"><strong>${escapeHtml(actionNames[entry.action] || entry.action)} · ${escapeHtml(formatDateTime(entry.createdAt))}</strong>
-          ${entry.before?.attachmentName ? `<p>${escapeHtml(entry.before.attachmentName)}</p>` : ""}
+          ${(entry.before?.attachmentName || entry.after?.attachmentName) ? `<p>Arquivo: ${escapeHtml(entry.before?.attachmentName || entry.after.attachmentName)}</p>` : ""}
+          ${entry.action === "attachment_added" ? `<p><strong>${escapeHtml(entry.after?.title)}</strong></p><p class="history-description">${escapeHtml(entry.after?.description)}</p>` : ""}
           ${changes.map(([label, field]) => `<div><span>${escapeHtml(label)}</span><p><del>${escapeHtml(entry.before?.[field] || "Em branco")}</del></p><p>${escapeHtml(entry.after?.[field] || "Em branco")}</p></div>`).join("")}
           ${entry.action === "updated" && !changes.length ? "<p>Consulta ou metadados atualizados, sem alteração nos campos.</p>" : ""}</article>`;
       }).join("") : "<p>Sem alterações registradas nesta versão. Alterações anteriores à implantação do histórico não foram reconstruídas.</p>";
