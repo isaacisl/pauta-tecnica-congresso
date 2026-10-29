@@ -72,6 +72,18 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 
 ## Recursos
 
+### Importação de acompanhamentos
+
+O botão **Importar planilha** oferece três etapas: planilha, conferência e importação. Aceita `.xlsx` sem macros/senha e `.csv` UTF-8, até 8 MB, 500 linhas de dados por aba e 60 colunas. Na primeira etapa há um modelo CSV para download. Escolha a aba e associe as colunas Projeto, Posicionamento, Sugestão de emenda e Parecer elaborado. As classificações ausentes ou desconhecidas ficam pendentes para preenchimento manual; nunca viram “Não” ou “Indiferente” automaticamente. Outros campos e hyperlinks da planilha não são importados.
+
+Na conferência, selecione uma área para o lote inteiro e, opcionalmente, um responsável padrão. Cada linha permite trocar o responsável por alguém da área, conferir os dados oficiais e selecionar a matéria correta quando houver ambiguidade. Também é possível aplicar classificações explicitamente aos selecionados. A prévia tem paginação, filtro de pendências e seleção por projeto. As consultas são sequenciais, reutilizam resultados inequívocos repetidos do próprio lote e não criam acompanhamentos antes da confirmação. Datas legislativas, autoria, ementa, despacho e comissão vêm da busca oficial já existente, não do texto antigo da planilha.
+
+Cada projeto pode receber documentos com título e descrição obrigatórios. Os anexos são opcionais, até 20 MB por arquivo, 20 por projeto e 100 MB no lote. A confirmação informa os itens que ficarão de fora. Os registros são salvos individualmente: se houver falha em um documento, o acompanhamento criado é mantido e a tentativa seguinte envia somente o que falta. Itens com pendências não bloqueiam os demais. Acompanhamentos existentes não são sobrescritos, e duplicidades de matéria + área + responsável são recusadas no servidor.
+
+O controle de reenvio usa a tabela aditiva `import_receipts`, vinculada aos registros, com identificador único e assinatura do conteúdo enviado. O recibo é gravado na mesma transação do cadastro e persiste após reinício. Documentos usam os identificadores idempotentes já existentes. Uma resposta perdida pode ser consultada novamente pela repetição exata do envio, sem novo cadastro; alterações de conteúdo para o mesmo identificador são recusadas. A prévia e os arquivos ainda não enviados ficam apenas na memória da aba: fechar ou recarregar descarta esse rascunho com aviso, mas preserva os registros já criados. Uma resposta incerta bloqueia temporariamente a edição da linha até a confirmação por reenvio.
+
+**Atualização no servidor:** faça backup, atualize o código e execute `npm.cmd ci` na pasta do projeto antes de iniciar/reiniciar o NSSM. Esta funcionalidade acrescenta o leitor XML `fast-xml-parser`, com versão fixada no lockfile. O restante da leitura ZIP é limitado em memória, sem extração para disco, execução de fórmulas ou acesso a links externos. A migração apenas cria a tabela de recibos, sem modificar os registros e anexos existentes. O backup SQLite já inclui a nova tabela automaticamente.
+
 ### Totalização visual
 
 A totalização apresenta seis indicadores (projetos distintos, acompanhamentos, com parecer, com sugestão de emenda, favoráveis e desfavoráveis), gráficos de rosca por status e barras empilhadas por área. As cores das barras correspondem aos posicionamentos reais de cada área; o comprimento total é proporcional à área com mais acompanhamentos. A coluna percentual usa o total de acompanhamentos da seleção, assim como os gráficos e indicadores de status. Parecer “Em andamento” não conta como parecer concluído. Todos os filtros atualizam o conjunto inteiro e restringem a lista de responsáveis à área selecionada.

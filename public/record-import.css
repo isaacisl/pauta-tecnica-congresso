@@ -1,0 +1,79 @@
+.import-dialog { width: min(1120px, calc(100% - 28px)); max-height: calc(100dvh - 24px); }
+.import-layout { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: min(920px, calc(100dvh - 32px)); }
+.import-layout .dialog-header { padding: 22px 26px; }
+.import-layout .dialog-header p:not(.eyebrow) { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.import-steps { display: flex; gap: 28px; list-style: none; margin: 0; padding: 15px 26px; background: var(--surface-soft); border-block: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.import-steps .is-active { color: var(--brand); font-weight: 750; }
+.import-body { padding: 22px 26px; }
+.import-body h3, .import-row-dialog h3 { font-size: 15px; margin: 0 0 10px; }
+.import-intro { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
+.import-intro p, #import-mapping > p, .import-editor-block > p { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.import-drop { margin: 20px 0; padding: 24px; border: 1px dashed var(--line-strong); border-radius: 12px; }
+.import-drop input, #import-row-files { width: 100%; padding: 10px 0; font-size: 12px; }
+.import-drop small, .import-assignment small, .import-row-dialog .field > small { color: var(--muted); font-size: 11px; }
+#import-mapping > .field { max-width: 420px; margin-bottom: 20px; }
+.import-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
+.import-assignment { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 20px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; }
+.import-message { margin: 0 0 16px; color: var(--brand); font-size: 12px; white-space: pre-wrap; }
+.import-message:empty { display: none; }
+.import-message.is-error, .import-invalid-value { color: #9a4a08; }
+.import-bulk { margin: 18px 0; padding: 14px 18px; border: 1px solid var(--line); border-radius: 12px; }
+.import-bulk summary { cursor: pointer; color: var(--brand); font-size: 12px; font-weight: 650; }
+.import-list-heading, .import-list-tools { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 18px 0 12px; }
+.import-list-heading h3 { margin-bottom: 5px; }
+.import-list-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.import-list-tools { font-size: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.import-list-tools > label:first-child { display: inline-flex; align-items: center; gap: 8px; }
+.import-list-tools select { min-height: 36px; font-size: 12px; }
+.import-rows { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.import-list-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(170px, 230px); align-items: start; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.import-list-row > input { margin-top: 5px; accent-color: var(--brand); }
+.import-row-open { display: grid; min-width: 0; gap: 5px; padding: 0; border: 0; background: none; text-align: left; }
+.import-row-open strong { color: var(--brand); font-size: 14px; }
+.import-row-open small, .import-row-open span { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.import-row-open:hover strong { text-decoration: underline; }
+.import-row-open:disabled { cursor: wait; }
+.import-row-status { display: grid; justify-items: start; gap: 6px; }
+.import-row-status small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.import-badge { display: inline-block; padding: 4px 8px; border-radius: 6px; background: #fff1dd; color: #975112; font-size: 10px; font-weight: 650; }
+.import-badge.is-ready { background: #e8f5ee; color: #176746; }
+.import-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 0; color: var(--muted); font-size: 12px; }
+.import-pagination .button { min-height: 36px; padding: 8px 12px; font-size: 12px; }
+.import-confirm-card { padding: 26px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
+.import-confirm-card p { line-height: 1.7; font-size: 13px; }
+.import-confirm-card progress { display: block; width: 100%; height: 12px; margin: 24px 0 12px; accent-color: var(--brand); }
+.import-row-dialog { width: min(810px, calc(100% - 28px)); max-height: calc(100dvh - 24px); }
+.import-row-dialog .details-layout { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: calc(100dvh - 32px); }
+.import-prompt { width: min(460px, calc(100% - 28px)); }
+.import-prompt .dialog-header { padding: 20px 24px; }
+.import-prompt .dialog-body { padding: 18px 24px; font-size: 13px; line-height: 1.7; }
+.import-prompt .dialog-body p { margin: 0; }
+.import-context { margin: 0 0 18px; padding: 12px; border-radius: 8px; background: var(--brand-soft); font-size: 12px; }
+.import-editor-block { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.import-editor-block h3 > small { margin-left: 6px; color: var(--muted); font-size: 11px; font-weight: 400; }
+.import-project-query { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.import-project-query > label { flex: 1; }
+.import-project-query .button { min-height: 42px; }
+.import-official { margin-top: 14px; padding: 16px; border-radius: 10px; background: var(--surface-soft); font-size: 12px; overflow-wrap: anywhere; }
+.import-official p, .import-official dd { white-space: pre-wrap; }
+.import-official dt { color: var(--muted); font-size: 11px; margin-top: 14px; }
+.import-official dd { margin: 5px 0 0; }
+.import-document { display: grid; gap: 10px; margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; }
+.import-document > strong { overflow-wrap: anywhere; font-size: 12px; }
+.import-document > small { color: var(--muted); font-size: 11px; }
+.import-document > button { justify-self: start; }
+.import-pending-box { padding: 14px; border: 1px solid #edc590; border-radius: 10px; background: #fff7ed; font-size: 12px; color: #8a470e; }
+.import-pending-box ul { margin: 8px 0 0; padding-left: 20px; }
+@media (max-width: 640px) {
+  .import-layout { height: calc(100dvh - 24px); }
+  .import-body, .import-layout .dialog-header { padding: 17px; }
+  .import-steps { gap: 14px; padding: 13px 17px; font-size: 10px; }
+  .import-fields, .import-assignment { grid-template-columns: 1fr; }
+  .import-list-row { grid-template-columns: 18px minmax(0, 1fr); }
+  .import-row-status { grid-column: 2; }
+  .import-list-tools, .import-list-heading, .import-project-query { align-items: stretch; flex-direction: column; }
+  .import-list-heading { gap: 8px; }
+  .import-pagination { gap: 6px; font-size: 10px; }
+  .import-dialog .dialog-footer, .import-row-dialog .dialog-footer { padding: 14px 17px; gap: 10px; }
+  .import-intro, .import-confirm-card { padding: 16px; }
+}

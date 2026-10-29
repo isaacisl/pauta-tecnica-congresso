@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual, createHash } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -9,6 +9,7 @@ import { propositionTypes } from "./lib/proposition-types.js";
 import { createPropositionService } from "./lib/propositions.js";
 import { createTramitationMonitor } from "./lib/tramitations.js";
 import { createDocumentPreviews } from "./lib/document-previews.js";
+import { readImportFile, importLimits } from "./lib/import-files.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(rootDir, "public");
@@ -267,12 +268,37 @@ export async function startServer({
       const { pathname } = url;
 
       if (pathname === "/api/health" && request.method === "GET") {
-        send(response, 200, { status: "ok", apiVersion: 4 });
+        send(response, 200, { status: "ok", apiVersion: 4, imports: 1 });
         return;
       }
 
       if (pathname === "/api/parameters" && request.method === "GET") {
         send(response, 200, { ...parameters, propositionTypes });
+        return;
+      }
+
+      if (pathname === "/api/import/preview" && request.method === "POST") {
+        let name;
+        try { name = decodeURIComponent(request.headers["x-file-name"] || ""); }
+        catch { throw Object.assign(new Error("Nome da planilha inválido."), { status: 400 }); }
+        let content;
+        try { content = await readBinary(request, importLimits.bytes); }
+        catch (error) { if (error.status === 413) error.message = "A planilha deve ter no máximo 8 MB."; throw error; }
+        send(response, 200, readImportFile(content, name));
+        return;
+      }
+
+      if (pathname === "/api/import/records" && request.method === "POST") {
+        const { key, record: input } = await readJson(request);
+        if (typeof key !== "string" || !/^[a-f0-9-]{36}$/i.test(key) || !input || typeof input !== "object" || Array.isArray(input)) {
+          throw Object.assign(new Error("Identificador de importação inválido. Reabra a importação."), { status: 400 });
+        }
+        const fingerprint = createHash("sha256").update(JSON.stringify(Object.fromEntries(Object.keys(input).sort().map(field => [field, input[field]])))).digest("hex");
+        const previous = database.importReceipt(key, fingerprint);
+        if (previous) { send(response, 200, { record: previous, replayed: true }); return; }
+        const record = database.create(propositions.recordInput(input), { key, fingerprint });
+        if (tramitationCheckDelayMs !== null) scheduleMonitor(0);
+        send(response, 201, { record });
         return;
       }
 
