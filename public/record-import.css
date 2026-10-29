@@ -8,6 +8,22 @@
 .import-body h3, .import-row-dialog h3 { font-size: 15px; margin: 0 0 10px; }
 .import-intro { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
 .import-intro p, #import-mapping > p, .import-editor-block > p { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.import-example-scroll { max-width: 100%; overflow-x: auto; margin: 16px 0 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.import-example-scroll:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 2px; }
+.import-example-table { display: table; width: 100%; min-width: 620px; border-collapse: collapse; table-layout: auto; font-size: 12px; }
+.import-example-table caption { padding: 10px 14px; color: var(--muted); background: var(--surface); text-align: left; font-size: 11px; }
+.import-example-table thead { display: table-header-group; }
+.import-example-table tbody { display: table-row-group; }
+.import-example-table tr { display: table-row; width: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.import-example-table th, .import-example-table td { display: table-cell; width: auto; padding: 11px 14px; border: 0; border-top: 1px solid var(--line); text-align: left; white-space: nowrap; font-size: 12px; font-weight: 400; }
+.import-example-table th { background: var(--brand-soft); color: var(--ink); font-weight: 650; text-transform: none; letter-spacing: normal; }
+.import-example-table td::before { display: none; }
+.import-example-table tbody tr:hover { background: var(--surface); }
+.import-intro .import-example-note { margin: 8px 0 18px; font-size: 11px; }
+.import-format-rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin: 18px 0; padding-top: 16px; border-top: 1px solid var(--line); }
+.import-format-rules dt { margin-bottom: 4px; font-size: 12px; font-weight: 700; }
+.import-format-rules dd { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.import-format-rules dd strong { color: var(--ink); font-weight: 600; }
 .import-drop { margin: 20px 0; padding: 24px; border: 1px dashed var(--line-strong); border-radius: 12px; }
 .import-drop input, #import-row-files { width: 100%; padding: 10px 0; font-size: 12px; }
 .import-drop small, .import-assignment small, .import-row-dialog .field > small { color: var(--muted); font-size: 11px; }
@@ -69,6 +85,7 @@
   .import-body, .import-layout .dialog-header { padding: 17px; }
   .import-steps { gap: 14px; padding: 13px 17px; font-size: 10px; }
   .import-fields, .import-assignment { grid-template-columns: 1fr; }
+  .import-format-rules { grid-template-columns: 1fr; }
   .import-list-row { grid-template-columns: 18px minmax(0, 1fr); }
   .import-row-status { grid-column: 2; }
   .import-list-tools, .import-list-heading, .import-project-query { align-items: stretch; flex-direction: column; }

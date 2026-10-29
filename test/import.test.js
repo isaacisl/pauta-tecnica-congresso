@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { crc32, deflateRawSync } from "node:zlib";
@@ -53,6 +53,21 @@ test("projetos exigem sigla válida, número positivo e ano completo; prévia ex
   assert.deepEqual(importRowIssues(row, "Educação", ["Eduardo Santana"]), []);
   assert.ok(importRowIssues(row, "Educação", ["Eduardo Santana"], true).length);
   assert.ok(importRowIssues({ ...row, documents: [{ title: "", description: "" }] }, "Educação", ["Eduardo Santana"]).length);
+});
+
+test("tabela ilustrativa orienta o usuário com três linhas e somente valores aceitos na importação", async () => {
+  const source = await readFile(new URL("../public/record-import.js", import.meta.url), "utf8");
+  const table = source.match(/<table class="import-example-table">([\s\S]*?)<\/table>/)?.[1];
+  assert.ok(table);
+  const rows = [...table.matchAll(/<tr>((?:<td>[^<]*<\/td>){4})<\/tr>/g)].map(match => [...match[1].matchAll(/<td>([^<]*)<\/td>/g)].map(cell => cell[1]));
+  assert.equal(rows.length, 3);
+  for (const [project, position, amendment, opinion] of rows) {
+    assert.ok(parseImportProject(project, propositionTypes));
+    assert.ok(parameters.posicionamentos.includes(position));
+    assert.ok(parameters.emendas.includes(amendment));
+    assert.ok(parameters.pareceres.includes(opinion));
+  }
+  assert.match(source, /esta tabela não será importada/);
 });
 
 test("XLSX lê shared strings, texto rico, fórmulas sem executar e linhas esparsas", () => {

@@ -16,7 +16,31 @@ export function initializeRecordImport({ parameters, api, uploadAttachment, onIm
       <div class="dialog-body import-body">
         <p id="import-message" class="import-message" role="status" aria-live="polite"></p>
         <section id="import-file-stage">
-          <div class="import-intro"><h3>Comece pela planilha</h3><p>Use as colunas <strong>Projeto</strong>, <strong>Posicionamento</strong>, <strong>Sugestão de emenda</strong> e <strong>Parecer elaborado</strong>. Se alguma classificação faltar, você poderá preenchê-la na conferência.</p><p>A área e o responsável serão escolhidos aqui. Outras colunas e links não serão importados.</p><a id="import-template" class="text-button" download="modelo-importacao.csv">Baixar modelo CSV</a></div>
+          <div class="import-intro">
+            <h3>Como preencher a planilha</h3>
+            <p>Coloque os nomes das colunas na primeira linha e um projeto em cada linha seguinte, como no exemplo abaixo.</p>
+            <div class="import-example-scroll" role="region" aria-label="Tabela de exemplo de preenchimento da planilha" tabindex="0">
+              <table class="import-example-table">
+                <caption>Exemplo fictício de preenchimento</caption>
+                <thead><tr><th scope="col">Projeto</th><th scope="col">Posicionamento</th><th scope="col">Sugestão de emenda</th><th scope="col">Parecer elaborado</th></tr></thead>
+                <tbody>
+                  <tr><td>PL 123/2026</td><td>Favorável</td><td>Sim</td><td>Sim</td></tr>
+                  <tr><td>PLP 45/2026</td><td>Desfavorável</td><td>Não</td><td>Não</td></tr>
+                  <tr><td>PEC 7/2026</td><td>Indiferente</td><td>Não</td><td>Em andamento</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="import-example-note">Os números são apenas ilustrativos. Substitua pelos projetos que você deseja acompanhar; esta tabela não será importada.</p>
+            <dl class="import-format-rules">
+              <div><dt>Projeto</dt><dd>Informe a sigla, um espaço, o número e o ano com quatro dígitos: <strong>PL 123/2026</strong>. Outros tipos oficiais, como PLP e PEC, também são aceitos. Não abrevie o ano para “26”.</dd></div>
+              <div><dt>Posicionamento</dt><dd>Use ${parameters.posicionamentos.map(value => `<strong>${escape(value)}</strong>`).join(", ")}. Este é o posicionamento da área, não a situação legislativa do projeto.</dd></div>
+              <div><dt>Sugestão de emenda</dt><dd>Use ${parameters.emendas.map(value => `<strong>${escape(value)}</strong>`).join(" ou ")}.</dd></div>
+              <div><dt>Parecer elaborado</dt><dd>Use ${parameters.pareceres.map(value => `<strong>${escape(value)}</strong>`).join(", ")}. Escolha <strong>Em andamento</strong> quando o parecer ainda estiver sendo preparado.</dd></div>
+            </dl>
+            <p>Classificações vazias ou com valores diferentes dessas opções ficarão pendentes para você corrigir na conferência. O sistema não escolherá uma resposta automaticamente.</p>
+            <p>A área e o responsável serão escolhidos na próxima etapa. Outras colunas e links não serão importados.</p>
+            <a id="import-template" class="text-button" download="modelo-importacao.csv">Baixar modelo CSV para preencher</a>
+          </div>
           <label class="import-drop field"><span>Selecionar planilha</span><input id="import-file" type="file" accept=".xlsx,.csv"/><small>XLSX ou CSV UTF-8 · Até 8 MB e 500 projetos por aba.</small></label>
           <div id="import-mapping" hidden><label class="field"><span>Aba da planilha</span><select id="import-sheet"></select></label><h3>Confira as colunas</h3><p>Associe cada campo à coluna correspondente. Os valores originais serão preservados para consulta durante a conferência.</p><div id="import-columns" class="import-fields"></div><p id="import-sheet-count" class="field-help"></p></div>
         </section>
