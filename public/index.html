@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261015-2" />
+    <link rel="stylesheet" href="/styles.css?v=20261029-2" />
   </head>
   <body>
     <header class="app-header">
@@ -190,11 +190,11 @@
       </section>
 
       <section id="totals-view" class="view" aria-labelledby="totals-title" hidden>
-        <div class="page-heading">
+        <div class="page-heading totals-heading">
           <div>
             <p class="eyebrow">Visão consolidada</p>
             <h1 id="totals-title">Totalização</h1>
-            <p class="page-description">Distribuição dos registros por área, parecer, emenda e posicionamento.</p>
+            <p class="page-description">Acompanhe os projetos e os posicionamentos das áreas.</p>
           </div>
           <button id="totals-new-button" class="button button-primary" type="button">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
@@ -202,28 +202,7 @@
           </button>
         </div>
 
-        <div class="totals-overview-row">
-          <div class="total-hero">
-            <div>
-              <span class="section-kicker light">Projetos distintos</span>
-              <strong id="unique-projects">0</strong>
-            </div>
-            <span class="hero-decoration" aria-hidden="true"><i></i><i></i><i></i></span>
-          </div>
-
-          <div class="record-count-card">
-            <span class="section-kicker">Acompanhamentos</span>
-            <strong id="grand-total">0</strong>
-          </div>
-
-          <section class="filter-card totals-filter-card" aria-labelledby="totals-filter-title">
-            <div class="filter-heading">
-              <div>
-                <span class="section-kicker">Filtros da totalização</span>
-                <h2 id="totals-filter-title">Refine os indicadores</h2>
-              </div>
-              <button id="clear-totals-filters" class="filter-clear-button" type="button" disabled>Limpar filtros</button>
-            </div>
+        <section class="totals-toolbar" aria-label="Filtros da totalização">
             <form id="totals-filter-form" class="total-filter-grid">
               <label class="field">
                 <span>Área técnica</span>
@@ -231,68 +210,64 @@
               </label>
               <label class="field">
                 <span>Responsável</span>
-                <select id="totals-filter-responsavel" name="responsavel"><option value="">Todas as pessoas</option></select>
+                <select id="totals-filter-responsavel" name="responsavel"><option value="">Todos os responsáveis</option></select>
               </label>
               <label class="field">
                 <span>Parecer elaborado</span>
-                <select id="totals-filter-parecer" name="haParecer"><option value="">Todos os status</option></select>
+                <select id="totals-filter-parecer" name="haParecer"><option value="">Todos</option></select>
               </label>
               <label class="field">
                 <span>Sugestão de emenda</span>
-                <select id="totals-filter-emenda" name="sugestaoEmenda"><option value="">Todas as opções</option></select>
+                <select id="totals-filter-emenda" name="sugestaoEmenda"><option value="">Todas</option></select>
               </label>
               <label class="field">
                 <span>Posicionamento</span>
                 <select id="totals-filter-posicionamento" name="posicionamento"><option value="">Todos</option></select>
               </label>
             </form>
-          </section>
+            <button id="clear-totals-filters" class="filter-clear-button" type="button" disabled>Limpar filtros</button>
+        </section>
+
+        <div id="totals-summary" class="totals-metrics" aria-label="Indicadores da seleção">
+          <div class="totals-metric totals-metric-primary"><span>Projetos distintos</span><strong id="unique-projects">0</strong></div>
+          <div class="totals-metric"><span>Acompanhamentos</span><strong id="grand-total">0</strong></div>
+          <div class="totals-metric"><span>Com parecer</span><strong id="with-opinion-total">0</strong><small id="with-opinion-percent">0%</small></div>
+          <div class="totals-metric"><span>Com sugestão de emenda</span><strong id="with-amendment-total">0</strong><small id="with-amendment-percent">0%</small></div>
+          <div class="totals-metric totals-metric-positive"><span>Favoráveis</span><strong id="favorable-total">0</strong><small id="favorable-percent">0%</small></div>
+          <div class="totals-metric totals-metric-negative"><span>Desfavoráveis</span><strong id="unfavorable-total">0</strong><small id="unfavorable-percent">0%</small></div>
         </div>
+        <p id="totals-feedback" class="totals-feedback" role="status" aria-live="polite"></p>
 
         <div class="dashboard-layout">
           <div class="status-row">
             <section class="dashboard-card" aria-labelledby="parecer-total-title">
               <div class="dashboard-card-heading compact">
-                <div><span class="section-kicker">Status</span><h2 id="parecer-total-title">Parecer elaborado</h2></div>
-                <span class="card-icon card-icon-amber" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M10 13h5M10 17h5" /></svg>
-                </span>
+                <h2 id="parecer-total-title">Parecer elaborado</h2>
               </div>
-              <div id="parecer-totals" class="mini-stat-list"></div>
+              <div id="parecer-totals" class="status-chart"></div>
             </section>
 
             <section class="dashboard-card" aria-labelledby="emenda-total-title">
               <div class="dashboard-card-heading compact">
-                <div><span class="section-kicker">Status</span><h2 id="emenda-total-title">Sugestão de emenda</h2></div>
-                <span class="card-icon card-icon-purple" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M5 19h4L19 9l-4-4L5 15zM13 7l4 4" /></svg>
-                </span>
+                <h2 id="emenda-total-title">Sugestão de emenda</h2>
               </div>
-              <div id="emenda-totals" class="mini-stat-list"></div>
+              <div id="emenda-totals" class="status-chart"></div>
             </section>
 
             <section class="dashboard-card" aria-labelledby="position-total-title">
               <div class="dashboard-card-heading compact">
-                <div><span class="section-kicker">Status</span><h2 id="position-total-title">Posicionamento da área</h2></div>
-                <span class="card-icon card-icon-green" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" /></svg>
-                </span>
+                <h2 id="position-total-title">Posicionamento da área</h2>
               </div>
-              <div id="position-totals" class="mini-stat-list"></div>
+              <div id="position-totals" class="status-chart"></div>
             </section>
           </div>
 
           <section class="dashboard-card area-card" aria-labelledby="area-total-title">
             <div class="dashboard-card-heading">
-              <div>
-                <span class="section-kicker">Distribuição</span>
-                <h2 id="area-total-title">Por área técnica</h2>
-              </div>
-              <span class="card-icon card-icon-blue" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 19h16M7 19V9h3v10m4 0V5h3v14" /></svg>
-              </span>
+              <h2 id="area-total-title">Por área técnica</h2>
+              <div id="area-position-legend" class="chart-legend" aria-label="Legenda dos posicionamentos"></div>
             </div>
-            <div id="area-totals" class="bar-list"></div>
+            <div id="area-totals" class="area-distribution"></div>
           </section>
         </div>
       </section>
@@ -588,6 +563,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261015-2"></script>
+    <script type="module" src="/app.js?v=20261029-2"></script>
   </body>
 </html>

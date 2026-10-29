@@ -44,3 +44,33 @@ test("totalização distingue matérias de acompanhamentos e respeita os filtros
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("distribuição por área e posição respeita todos os filtros, totais e lixeira", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pauta-totais-distribuicao-"));
+  const database = createDatabase(path.join(directory, "registros.sqlite"));
+  try {
+    database.create(base);
+    database.create({ ...base, projeto: "PL 2/2026", haParecer: "Sim", sugestaoEmenda: "Sim", posicionamento: "Desfavorável" });
+    database.create({ ...base, projeto: "PL 3/2026", haParecer: "Em andamento", posicionamento: "Indiferente" });
+    database.create({ ...base, projeto: "PL 4/2026", areaTecnica: "Finanças e Tributação", responsavel: "Alex Carneiro" });
+    const deleted = database.create({ ...base, projeto: "PL 5/2026" });
+    database.remove(deleted.id, deleted.revision);
+    const all = database.totals();
+    assert.equal(all.total, 4);
+    assert.equal(all.byAreaPosition.reduce((sum, item) => sum + item.count, 0), 4);
+    assert.deepEqual(all.byAreaPosition.filter(item => item.label === "Educação").map(item => item.count), [1, 1, 1]);
+    for (const filters of [{ areaTecnica: "Educação" }, { responsavel: "Eduardo Santana" }, { haParecer: "Sim" },
+      { sugestaoEmenda: "Sim" }, { posicionamento: "Indiferente" }, { areaTecnica: "Cultura" },
+      { areaTecnica: "Educação", haParecer: "Sim", sugestaoEmenda: "Sim", posicionamento: "Desfavorável" }]) {
+      const totals = database.totals(filters);
+      assert.equal(totals.total, database.list(filters).length);
+      assert.equal(totals.byAreaPosition.reduce((sum, item) => sum + item.count, 0), totals.total);
+      for (const area of totals.byArea) assert.equal(totals.byAreaPosition.filter(item => item.label === area.label).reduce((sum, item) => sum + item.count, 0), area.count);
+    }
+    assert.deepEqual(database.totals({ areaTecnica: "Cultura" }).byAreaPosition, []);
+    assert.equal(database.totals({ haParecer: "Sim" }).byAreaPosition[0].position, "Desfavorável");
+  } finally {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

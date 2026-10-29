@@ -72,6 +72,14 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 
 ## Recursos
 
+### Totalização visual
+
+A totalização apresenta seis indicadores (projetos distintos, acompanhamentos, com parecer, com sugestão de emenda, favoráveis e desfavoráveis), gráficos de rosca por status e barras empilhadas por área. As cores das barras correspondem aos posicionamentos reais de cada área; o comprimento total é proporcional à área com mais acompanhamentos. A coluna percentual usa o total de acompanhamentos da seleção, assim como os gráficos e indicadores de status. Parecer “Em andamento” não conta como parecer concluído. Todos os filtros atualizam o conjunto inteiro e restringem a lista de responsáveis à área selecionada.
+
+Esta alteração não modifica o schema nem os registros do SQLite. A API `/api/totals` acrescenta `byAreaPosition` com área, posicionamento e quantidade. Reinicie o processo Node após atualizar o servidor; enquanto ele ainda estiver na versão anterior, a interface pode calcular essa distribuição com os registros filtrados, sem alterar dados.
+
+### Funcionalidades
+
 - cadastro, edição e exclusão de registros;
 - cadastro em duas etapas: primeiro a busca e os dados do projeto; depois a área, o responsável, a análise e os documentos;
 - consulta do registro em abas de projeto e acompanhamento, com edição aberta a partir da aba consultada;

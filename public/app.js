@@ -4,6 +4,7 @@ import { initializeHistoryUI } from "./record-history.js?v=20261015-1";
 import { documentMetadataErrors } from "./document-utils.js?v=20261015-1";
 import { initializeDocumentInfo } from "./document-info.js?v=20261015-1";
 import { recordSortOptions, sortRecords } from "./record-sort.js?v=20261015-1";
+import { chartColor, chartSeries, donutBackground, groupAreaPositions, areaChartRows } from "./totals-charts.js?v=20261029-1";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
 import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261002-7";
@@ -85,6 +86,9 @@ const elements = {
   emptyDescription: document.querySelector("#empty-description"),
   grandTotal: document.querySelector("#grand-total"),
   uniqueProjects: document.querySelector("#unique-projects"),
+  totalsSummary: document.querySelector("#totals-summary"),
+  totalsFeedback: document.querySelector("#totals-feedback"),
+  areaPositionLegend: document.querySelector("#area-position-legend"),
   areaTotals: document.querySelector("#area-totals"),
   parecerTotals: document.querySelector("#parecer-totals"),
   emendaTotals: document.querySelector("#emenda-totals"),
@@ -596,18 +600,6 @@ function valueMap(series) {
   return new Map(series.map((item) => [item.label, Number(item.count)]));
 }
 
-function dotClass(label) {
-  const classes = {
-    Sim: "dot-green",
-    "Não": "dot-red",
-    "Em andamento": "dot-amber",
-    Favorável: "dot-green",
-    Desfavorável: "dot-red",
-    Indiferente: "dot-blue"
-  };
-  return classes[label] ?? "dot-purple";
-}
-
 function formatPercentage(count, total) {
   if (!total) return "0%";
   return new Intl.NumberFormat("pt-BR", {
@@ -623,42 +615,30 @@ function countUniqueProjects(records) {
     : `legacy:${String(record.projeto || "").normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR")}`)).size;
 }
 
-function renderMiniStats(container, options, series, total) {
-  const counts = valueMap(series);
-  container.innerHTML = options
-    .map((label) => {
-      const count = counts.get(label) ?? 0;
-      return `
-        <div class="mini-stat-item">
-          <span class="mini-stat-label"><i class="mini-stat-dot ${dotClass(label)}"></i>${escapeHtml(label)}</span>
-          <strong><span>${count}</span><small class="mini-stat-percent">${formatPercentage(count, total)}</small></strong>
-        </div>
-      `;
-    })
-    .join("");
+function chartSwatch(label, color) {
+  return `<span class="chart-label"><i class="chart-swatch" style="background:${color}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></span>`;
 }
 
-function renderAreaTotals(series, total) {
-  const used = series.filter((item) => Number(item.count) > 0);
-  if (!used.length) {
-    elements.areaTotals.innerHTML = '<div class="dashboard-empty">Os totais por área aparecerão aqui após o primeiro cadastro.</div>';
+function renderStatusChart(container, options, series, total, kind) {
+  const segments = chartSeries(options, series, kind);
+  container.innerHTML = `<div class="donut-chart" style="background:${donutBackground(segments)}" aria-hidden="true"><div class="donut-center"><strong>${total}</strong><small>total</small></div></div>
+    <ul class="status-chart-legend">${segments.map(({ label, count, color }) => `<li>${chartSwatch(label, color)}<strong>${count}</strong><span class="chart-percent">${formatPercentage(count, total)}</span></li>`).join("")}</ul>`;
+}
+
+function renderAreaTotals(totals) {
+  const rows = areaChartRows(totals.byArea, totals.byAreaPosition, state.parameters.posicionamentos);
+  elements.areaPositionLegend.innerHTML = state.parameters.posicionamentos.map(label => chartSwatch(label, chartColor(label))).join("");
+  if (!rows.length) {
+    elements.areaTotals.innerHTML = '<div class="dashboard-empty">Nenhum acompanhamento encontrado para esta seleção.</div>';
     return;
   }
-
-  const max = Math.max(...used.map((item) => Number(item.count)), 1);
-  elements.areaTotals.innerHTML = used
-    .map(
-      (item) => `
-        <div class="bar-item">
-          <div class="bar-item-head">
-            <span>${escapeHtml(item.label)}</span>
-            <strong class="bar-item-metrics"><span>${item.count}</span><small class="bar-item-percent">${formatPercentage(Number(item.count), total)}</small></strong>
-          </div>
-          <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width: ${(Number(item.count) / max) * 100}%"></div></div>
-        </div>
-      `
-    )
-    .join("");
+  elements.areaTotals.innerHTML = `<div class="area-chart-header" aria-hidden="true"><span>Área</span><span>Posicionamento</span><span>Total</span><span>%</span></div>
+    <ul class="area-chart-rows">${rows.map(item => {
+      const description = item.segments.map(segment => `${segment.label}: ${segment.count}`).join("; ");
+      return `<li class="area-chart-row"><span class="area-chart-name">${escapeHtml(item.label)}</span>
+        <span class="area-chart-track" role="img" aria-label="${escapeHtml(description)}" title="${escapeHtml(description)}">${item.segments.filter(segment => segment.count > 0).map(segment => `<i style="width:${segment.width}%;background:${segment.color}"></i>`).join("")}</span>
+        <strong class="area-chart-count"><span class="sr-only">Total: </span>${item.count}</strong><span class="chart-percent">${formatPercentage(item.count, totals.total)}</span></li>`;
+    }).join("")}</ul>`;
 }
 
 function renderTotals() {
@@ -667,15 +647,26 @@ function renderTotals() {
     ? state.totals.uniqueProjects : "—";
   elements.grandTotal.textContent = state.totals.total;
   elements.totalRecords.textContent = state.totals.overallTotal ?? state.totals.total;
-  renderAreaTotals(state.totals.byArea, state.totals.total);
-  renderMiniStats(elements.parecerTotals, state.parameters.pareceres, state.totals.byParecer, state.totals.total);
-  renderMiniStats(elements.emendaTotals, state.parameters.emendas, state.totals.byEmenda, state.totals.total);
-  renderMiniStats(elements.positionTotals, state.parameters.posicionamentos, state.totals.byPosicionamento, state.totals.total);
+  for (const [id, series, label] of [
+    ["with-opinion", state.totals.byParecer, "Sim"], ["with-amendment", state.totals.byEmenda, "Sim"],
+    ["favorable", state.totals.byPosicionamento, "Favorável"], ["unfavorable", state.totals.byPosicionamento, "Desfavorável"]
+  ]) {
+    const count = valueMap(series).get(label) ?? 0;
+    document.querySelector(`#${id}-total`).textContent = count;
+    document.querySelector(`#${id}-percent`).textContent = formatPercentage(count, state.totals.total);
+  }
+  renderAreaTotals(state.totals);
+  renderStatusChart(elements.parecerTotals, state.parameters.pareceres, state.totals.byParecer, state.totals.total, "opinion");
+  renderStatusChart(elements.emendaTotals, state.parameters.emendas, state.totals.byEmenda, state.totals.total, "amendment");
+  renderStatusChart(elements.positionTotals, state.parameters.posicionamentos, state.totals.byPosicionamento, state.totals.total, "position");
 }
 
 async function loadTotals() {
   const requestId = ++state.totalsRequestId;
   updateClearFilterButton(elements.totalsFilterForm, elements.clearTotalsFilters);
+  elements.totalsView.setAttribute("aria-busy", "true");
+  elements.totalsFeedback.textContent = "Atualizando indicadores…";
+  elements.totalsFeedback.classList.remove("is-error");
   try {
     const params = currentTotalFilters();
     const suffix = params.size ? `?${params}` : "";
@@ -686,9 +677,10 @@ async function loadTotals() {
     if (requestId !== state.totalsRequestId) return;
     // During deployment, the browser may receive new files while the old Node
     // process is still serving the API. Keep the indicator useful until restart.
-    if (!Number.isInteger(totals.uniqueProjects)) {
+    if (!Number.isInteger(totals.uniqueProjects) || !Array.isArray(totals.byAreaPosition)) {
       const records = await api(`/api/records${suffix}`);
-      totals.uniqueProjects = countUniqueProjects(records.records);
+      if (!Number.isInteger(totals.uniqueProjects)) totals.uniqueProjects = countUniqueProjects(records.records);
+      if (!Array.isArray(totals.byAreaPosition)) totals.byAreaPosition = groupAreaPositions(records.records);
     }
     if (requestId !== state.totalsRequestId) return;
     state.totalFilterOptions = filterOptions;
@@ -698,9 +690,19 @@ async function loadTotals() {
     }
     state.totals = totals;
     renderTotals();
+    const filtered = params.size > 0;
+    elements.totalsFeedback.textContent = totals.total === 0
+      ? "Nenhum acompanhamento encontrado para esta seleção."
+      : `${filtered ? "Filtros aplicados. " : ""}Percentuais sobre ${totals.total} ${totals.total === 1 ? "acompanhamento" : "acompanhamentos"}${filtered ? " da seleção" : ""}.`;
+    elements.totalsSummary.classList.remove("is-stale");
   } catch (error) {
     if (requestId !== state.totalsRequestId) return;
-    showToast(error.message, "error");
+    elements.totalsSummary.classList.add("is-stale");
+    elements.totalsFeedback.textContent = "Não foi possível atualizar os indicadores. Os valores não refletem necessariamente os filtros selecionados. Tente novamente.";
+    elements.totalsFeedback.classList.add("is-error");
+    showToast("Não foi possível carregar a totalização. Verifique a conexão e tente novamente.", "error");
+  } finally {
+    if (requestId === state.totalsRequestId) elements.totalsView.setAttribute("aria-busy", "false");
   }
 }
 
