@@ -1,10 +1,11 @@
 const colors = Object.freeze({
-  blue: "#245fa4", green: "#198052", red: "#bc4233", amber: "#c99116", gray: "#a1adbc"
+  blue: "#245fa4", green: "#198052", red: "#bc4233", amber: "#c99116", gray: "#a1adbc", unknown: "#62758a"
 });
 
 const countOf = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
 
 export function chartColor(label, kind = "position") {
+  if (label === "N/I") return colors.unknown;
   if (kind === "position") return label === "Favorável" ? colors.green : label === "Desfavorável" ? colors.red : colors.gray;
   if (label === "Sim") return colors.blue;
   return label === "Em andamento" ? colors.amber : kind === "opinion" ? colors.red : colors.gray;

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { crc32, deflateRawSync } from "node:zlib";
@@ -10,6 +10,8 @@ import { parseImportProject, mappedImportRows, importRowIssues, importIdentity, 
 import { parameters } from "../lib/parameters.js";
 import { propositionTypes } from "../lib/proposition-types.js";
 import { startServer } from "../server.js";
+
+const importHeaders = { "X-Import-Password": encodeURIComponent(process.env.EXPORT_PASSWORD || "CentralDeDados2026") };
 
 function zip(entries, compress = false) {
   const local = [], central = []; let offset = 0;
@@ -40,34 +42,35 @@ test("CSV lê BOM, separadores, aspas, múltiplas linhas e ignora vazios sem inv
   const rows = mappedImportRows(result.sheets[0], result.sheets[0].mapping, parameters, randomUUID);
   assert.equal(rows[0].posicionamento, "Favorável");
   assert.equal(rows[0].haParecer, "Em andamento");
-  assert.equal(rows[1].posicionamento, ""); assert.equal(rows[1].haParecer, ""); assert.equal(rows[1].sugestaoEmenda, "");
+  assert.equal(rows[1].posicionamento, ""); assert.equal(rows[1].haParecer, "N/I"); assert.equal(rows[1].sugestaoEmenda, "N/I");
   assert.ok(rows[1].raw.posicionamento.includes("\n"));
   assert.equal(readImportFile(Buffer.from('sep=,\nProjeto,Parecer elaborado\nPL 1/2026,Sim'), "outro.csv").sheets[0].rows.length, 1);
   assert.throws(() => readImportFile(Buffer.from('Projeto;Parecer\n"PL 1/2026;Sim'), "quebrado.csv"), /aspas/);
 });
 
+test("importação usa N/I em classificações vazias ou ausentes e preserva valores desconhecidos para conferência", () => {
+  const file = Buffer.from('Projeto;Posicionamento;Sugestão de emenda;Parecer elaborado\nPL 1/2026;;;\nPL 2/2026;N/I;N/I;N/I\nPL 3/2026;Indefinido;Talvez;Sim');
+  const sheet = readImportFile(file, "lista.csv").sheets[0];
+  const rows = mappedImportRows(sheet, sheet.mapping, parameters, randomUUID);
+  for (const row of rows.slice(0, 2)) {
+    assert.deepEqual([row.posicionamento, row.haParecer, row.sugestaoEmenda], ["N/I", "N/I", "N/I"]);
+    assert.deepEqual(importRowIssues({ ...row, status: "checked", propositionToken: "teste", responsible: "Eduardo Santana" }, "Educação", ["Eduardo Santana"]), []);
+  }
+  assert.equal(rows[2].posicionamento, "");
+  assert.equal(rows[2].raw.posicionamento, "Indefinido");
+  assert.equal(rows[2].sugestaoEmenda, "");
+  const onlyProject = readImportFile(Buffer.from('Projeto\nPL 4/2026'), "pautas.csv").sheets[0];
+  const [minimal] = mappedImportRows(onlyProject, onlyProject.mapping, parameters, randomUUID);
+  assert.deepEqual([minimal.posicionamento, minimal.haParecer, minimal.sugestaoEmenda], ["N/I", "N/I", "N/I"]);
+});
+
 test("projetos exigem sigla válida, número positivo e ano completo; prévia exige campos e documentos", () => {
   assert.deepEqual(parseImportProject(" plp 002 / 2026 ", propositionTypes), { siglaTipo: "PLP", numero: "2", ano: "2026" });
   for (const value of ["PL 1/26", "PL 0/2026", "BABOSEIRA 1/2026", "=PL 1/2026"]) assert.equal(parseImportProject(value, propositionTypes), null);
-  const row = { status: "checked", responsible: "Eduardo Santana", propositionToken: "token", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável", documents: [] };
+  const row = { status: "checked", responsible: "Eduardo Santana", propositionToken: "token", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável", prioridade: "N/I", documents: [] };
   assert.deepEqual(importRowIssues(row, "Educação", ["Eduardo Santana"]), []);
   assert.ok(importRowIssues(row, "Educação", ["Eduardo Santana"], true).length);
   assert.ok(importRowIssues({ ...row, documents: [{ title: "", description: "" }] }, "Educação", ["Eduardo Santana"]).length);
-});
-
-test("tabela ilustrativa orienta o usuário com três linhas e somente valores aceitos na importação", async () => {
-  const source = await readFile(new URL("../public/record-import.js", import.meta.url), "utf8");
-  const table = source.match(/<table class="import-example-table">([\s\S]*?)<\/table>/)?.[1];
-  assert.ok(table);
-  const rows = [...table.matchAll(/<tr>((?:<td>[^<]*<\/td>){4})<\/tr>/g)].map(match => [...match[1].matchAll(/<td>([^<]*)<\/td>/g)].map(cell => cell[1]));
-  assert.equal(rows.length, 3);
-  for (const [project, position, amendment, opinion] of rows) {
-    assert.ok(parseImportProject(project, propositionTypes));
-    assert.ok(parameters.posicionamentos.includes(position));
-    assert.ok(parameters.emendas.includes(amendment));
-    assert.ok(parameters.pareceres.includes(opinion));
-  }
-  assert.match(source, /esta tabela não será importada/);
 });
 
 test("XLSX lê shared strings, texto rico, fórmulas sem executar e linhas esparsas", () => {
@@ -87,8 +90,8 @@ test("duplicidades usam identidade oficial, área e responsável, sem misturar h
   assert.equal(index.size, 2);
   const linked = { ...row, proposition: { ...row.proposition, matterId: 7 } };
   const existing = { areaTecnica: "Educação", responsavel: row.responsible, matterId: 7 };
-  assert.equal(importDuplicateIndex([linked], [existing], "Educação").get(JSON.stringify([importIdentity(linked), row.responsible])), 2);
-  assert.equal(importDuplicateIndex([linked], [existing], "Cultura").get(JSON.stringify([importIdentity(linked), row.responsible])), 1);
+  assert.equal(importDuplicateIndex([linked], [existing], "Educação").get(JSON.stringify([importIdentity(linked), "Educação", row.responsible])), 2);
+  assert.equal(importDuplicateIndex([linked], [existing], "Cultura").get(JSON.stringify([importIdentity(linked), "Cultura", row.responsible])), 1);
   assert.equal(importDuplicateIndex([{ ...linked, selected: false }], [], "Educação").size, 0);
 });
 
@@ -110,26 +113,102 @@ const mockFetch = async url => {
   return Response.json({ dados: url.pathname.endsWith("/tramitacoes") ? [] : url.pathname.endsWith("/proposicoes") ? [proposition] : proposition });
 };
 
+test("API mapeia cinco colunas, ignora área e responsável da planilha e exige a atribuição escolhida no sistema", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pauta-import-columns-"));
+  let app;
+  try {
+    app = await startServer({ port: 0, databasePath: path.join(directory, "test.sqlite"), tramitationCheckDelayMs: null, camaraFetch: mockFetch, senadoFetch: async () => Response.json([]) });
+    const post = (endpoint, body) => fetch(`${app.url}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json", ...importHeaders }, body: JSON.stringify(body) });
+    const preview = await fetch(`${app.url}/api/import/preview`, { method: "POST", headers: { "X-File-Name": "lista.csv", ...importHeaders }, body: "Projeto;Área técnica;Responsável;Prioridade;Parecer elaborado;Sugestão de emenda;Posicionamento\nPL 124/2026;Educação;Eduardo Santana;Alta;Em andamento;Sim;Favorável\nPL 125/2026;Central de Dados;Luidy Santos;;;;" });
+    assert.equal(preview.status, 200);
+    const sheet = (await preview.json()).sheets[0];
+    assert.deepEqual(sheet.mapping, { projeto: 0, prioridade: 3, posicionamento: 6, sugestaoEmenda: 5, haParecer: 4 });
+    const imported = [];
+    for (const [index, number] of [124, 125].entries()) {
+      const search = await (await fetch(`${app.url}/api/propositions?siglaTipo=PL&numero=${number}&ano=2026`)).json();
+      const selected = await (await post(`/api/propositions/${search.results[0].selectionId}`, { searchToken: search.searchToken })).json();
+      const input = { propositionToken: selected.propositionToken, areaTecnica: index ? "Central de Dados" : "Educação", responsavel: index ? "Luidy Santos" : "Eduardo Santana", prioridade: index ? "" : "Alta", haParecer: index ? "" : "Em andamento", sugestaoEmenda: index ? "" : "Sim", posicionamento: index ? "" : "Favorável" };
+      for (const field of ["areaTecnica", "responsavel"]) {
+        assert.equal((await post("/api/import/records", { key: randomUUID(), record: { ...input, [field]: "" } })).status, 422);
+        assert.equal((await post("/api/import/records", { key: randomUUID(), record: { ...input, [field]: "N/I" } })).status, 422);
+      }
+      const response = await post("/api/import/records", { key: randomUUID(), record: input });
+      assert.equal(response.status, 201);
+      imported.push((await response.json()).record);
+    }
+    assert.deepEqual(imported.map(row => [row.areaTecnica, row.responsavel, row.prioridade, row.haParecer, row.sugestaoEmenda, row.posicionamento]), [
+      ["Educação", "Eduardo Santana", "Alta", "Em andamento", "Sim", "Favorável"],
+      ["Central de Dados", "Luidy Santos", "N/I", "N/I", "N/I", "N/I"]
+    ]);
+    const records = (await (await fetch(`${app.url}/api/records`)).json()).records;
+    assert.equal(records.length, 2);
+  } finally { if (app) await app.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("API importa acompanhamento incompleto com N/I e permite complementação posterior sem alterar outros registros", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pauta-import-ni-"));
+  let app;
+  try {
+    app = await startServer({ port: 0, databasePath: path.join(directory, "test.sqlite"), tramitationCheckDelayMs: null, camaraFetch: mockFetch, senadoFetch: async () => Response.json([]) });
+    const post = (endpoint, body, method = "POST") => fetch(`${app.url}${endpoint}`, { method, headers: { "Content-Type": "application/json", ...importHeaders }, body: JSON.stringify(body) });
+    const json = async endpoint => (await fetch(`${app.url}${endpoint}`)).json();
+    const existing = app.database.create({ areaTecnica: "Educação", responsavel: "Eduardo Santana", projeto: "PL 999/2026", ementa: "Já preenchido", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável" });
+    const search = await json("/api/propositions?siglaTipo=PL&numero=123&ano=2026");
+    const selected = await (await post(`/api/propositions/${search.results[0].selectionId}`, { searchToken: search.searchToken })).json();
+    const response = await post("/api/import/records", { key: randomUUID(), record: { areaTecnica: "Educação", responsavel: "Eduardo Santana", propositionToken: selected.propositionToken } });
+    assert.equal(response.status, 201);
+    const { record } = await response.json();
+    for (const field of ["haParecer", "sugestaoEmenda", "posicionamento", "prioridade"]) assert.equal(record[field], "N/I", field);
+    const query = new URLSearchParams({ haParecer: "N/I", sugestaoEmenda: "N/I", posicionamento: "N/I" });
+    assert.deepEqual((await json(`/api/records?${query}`)).records.map(item => item.id), [record.id]);
+    const totals = await json(`/api/totals?${query}`);
+    assert.equal(totals.total, 1);
+    assert.deepEqual(totals.byParecer, [{ label: "N/I", count: 1 }]);
+    assert.deepEqual((await json(`/api/filter-options?${query}`)).posicionamentos, ["N/I"]);
+    const completed = await post(`/api/records/${record.id}`, { ...record, haParecer: "Em andamento", sugestaoEmenda: "Sim", posicionamento: "Favorável" }, "PUT");
+    assert.equal(completed.status, 200);
+    const updated = (await completed.json()).record;
+    const { history } = await json(`/api/records/${record.id}/history`);
+    assert.equal(history[0].before.haParecer, "N/I");
+    assert.equal(history[0].after.haParecer, "Em andamento");
+    const partial = { areaTecnica: record.areaTecnica, responsavel: record.responsavel, projeto: record.projeto, ementa: record.ementa, revision: updated.revision };
+    const compatible = await post(`/api/records/${record.id}`, partial, "PUT");
+    assert.equal(compatible.status, 200);
+    const retained = (await compatible.json()).record;
+    assert.deepEqual([retained.haParecer, retained.sugestaoEmenda, retained.posicionamento], ["Em andamento", "Sim", "Favorável"]);
+    const explicit = await post(`/api/records/${record.id}`, { ...retained, haParecer: "N/I", sugestaoEmenda: "N/I", posicionamento: "N/I" }, "PUT");
+    assert.equal(explicit.status, 200);
+    assert.equal((await explicit.json()).record.posicionamento, "N/I");
+    const invalid = await post(`/api/records/${record.id}`, { ...retained, revision: retained.revision + 1, haParecer: "Talvez" }, "PUT");
+    assert.equal(invalid.status, 422);
+    assert.deepEqual(app.database.get(existing.id), existing, "registros preenchidos não são reclassificados");
+  } finally {
+    if (app) await app.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("importação valida no servidor, não grava na prévia e reenvio é idempotente inclusive após reinício", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pauta-import-"));
   const options = { port: 0, hostname: "127.0.0.1", databasePath: path.join(directory, "test.sqlite"), tramitationCheckDelayMs: null, camaraFetch: mockFetch, senadoFetch: async () => Response.json([]) };
   let app = await startServer(options);
-  const json = (url, body) => fetch(`${app.url}${url}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const json = (url, body) => fetch(`${app.url}${url}`, { method: "POST", headers: { "Content-Type": "application/json", ...importHeaders }, body: JSON.stringify(body) });
   try {
-    const preview = await fetch(`${app.url}/api/import/preview`, { method: "POST", headers: { "X-File-Name": "lista.csv" }, body: "Projeto;Parecer elaborado\nPL 123/2026;Sim" });
+    const preview = await fetch(`${app.url}/api/import/preview`, { method: "POST", headers: { "X-File-Name": "lista.csv", ...importHeaders }, body: "Projeto;Parecer elaborado\nPL 123/2026;Sim" });
     assert.equal(preview.status, 200);
     assert.equal(app.database.list().length, 0);
     const search = await (await fetch(`${app.url}/api/propositions?siglaTipo=PL&numero=123&ano=2026`)).json();
     const selection = await (await json(`/api/propositions/${search.results[0].selectionId}`, { searchToken: search.searchToken })).json();
     const input = { areaTecnica: "Central de Dados", responsavel: "Luidy Santos", haParecer: "Sim", sugestaoEmenda: "Não", posicionamento: "Favorável", propositionToken: selection.propositionToken };
     const key = randomUUID();
-    assert.equal((await json("/api/import/records", { key, record: { ...input, haParecer: "" } })).status, 422);
+    assert.equal((await json("/api/import/records", { key, record: { ...input, haParecer: "Talvez" } })).status, 422);
     assert.equal((await json("/api/import/records", { key, record: { ...input, responsavel: "Eduardo Santana" } })).status, 422);
     assert.equal((await json("/api/import/records", { key: "inválida", record: input })).status, 400);
     assert.equal(app.database.list().length, 0);
     const results = await Promise.all([json("/api/import/records", { key, record: input }), json("/api/import/records", { key, record: input })]);
     assert.deepEqual(results.map(response => response.status).sort(), [200, 201]);
     const record = (await results[0].json()).record;
+    assert.equal(record.prioridade, "N/I", "importações sem prioridade continuam válidas");
     assert.equal(record.ementa, "Ementa oficial de teste"); assert.equal(record.projeto, "PL 123/2026");
     assert.equal(app.database.list().length, 1); assert.equal(app.database.history(record.id).length, 1);
     assert.equal((await json("/api/import/records", { key: randomUUID(), record: input })).status, 409);

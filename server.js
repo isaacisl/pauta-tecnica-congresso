@@ -10,6 +10,7 @@ import { createPropositionService } from "./lib/propositions.js";
 import { createTramitationMonitor } from "./lib/tramitations.js";
 import { createDocumentPreviews } from "./lib/document-previews.js";
 import { readImportFile, importLimits } from "./lib/import-files.js";
+import { createOfficialRequests } from "./lib/official-requests.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(rootDir, "public");
@@ -55,7 +56,8 @@ const exportColumns = Object.freeze([
   ["Atual comissão", "atualComissao"],
   ["Há parecer elaborado?", "haParecer"],
   ["Sugestão de emenda", "sugestaoEmenda"],
-  ["Posicionamento da área técnica", "posicionamento"]
+  ["Posicionamento da área técnica", "posicionamento"],
+  ["Prioridade", "prioridade"]
 ]);
 
 function send(response, status, body, contentType = "application/json; charset=utf-8", extraHeaders = {}) {
@@ -198,7 +200,7 @@ function recordsToCsv(records) {
   return Buffer.from(`\uFEFFsep=;\r\n${rows.join("\r\n")}\r\n`, "utf8");
 }
 
-function hasValidExportPassword(value) {
+function hasValidTransferPassword(value) {
   const received = Buffer.from(typeof value === "string" ? value : "", "utf8");
   const expected = Buffer.from(exportPassword, "utf8");
   return received.length === expected.length && timingSafeEqual(received, expected);
@@ -207,11 +209,12 @@ function hasValidExportPassword(value) {
 function getFilters(url) {
   return {
     q: url.searchParams.get("q") ?? "",
-    areaTecnica: url.searchParams.get("areaTecnica") ?? "",
-    responsavel: url.searchParams.get("responsavel") ?? "",
-    haParecer: url.searchParams.get("haParecer") ?? "",
-    sugestaoEmenda: url.searchParams.get("sugestaoEmenda") ?? "",
-    posicionamento: url.searchParams.get("posicionamento") ?? ""
+    areaTecnica: url.searchParams.getAll("areaTecnica"),
+    responsavel: url.searchParams.getAll("responsavel"),
+    haParecer: url.searchParams.getAll("haParecer"),
+    sugestaoEmenda: url.searchParams.getAll("sugestaoEmenda"),
+    posicionamento: url.searchParams.getAll("posicionamento"),
+    prioridade: url.searchParams.getAll("prioridade")
   };
 }
 
@@ -251,13 +254,15 @@ export async function startServer({
   databasePath = process.env.DATABASE_PATH || defaultDatabasePath,
   camaraFetch = fetch,
   senadoFetch = fetch,
+  officialRequestLimits,
   documentConverter,
   tramitationCheckDelayMs = 10000,
   tramitationCheckIntervalMs = 60 * 60 * 1000
 } = {}) {
+  const officialRequests = createOfficialRequests({ camaraFetch, senadoFetch, limits: officialRequestLimits });
   const database = createDatabase(databasePath);
-  const propositions = createPropositionService({ database, camaraFetch, senadoFetch });
-  const monitor = createTramitationMonitor({ database, camaraFetch, senadoFetch });
+  const propositions = createPropositionService({ database, camaraFetch: officialRequests.camaraFetch, senadoFetch: officialRequests.senadoFetch });
+  const monitor = createTramitationMonitor({ database, camaraFetch: officialRequests.camaraFetch, senadoFetch: officialRequests.senadoFetch });
   const uploadDirectory = path.join(path.dirname(databasePath), "uploads");
   await mkdir(uploadDirectory, { recursive: true });
   const previews = createDocumentPreviews({ uploadDirectory, convertDocument: documentConverter });
@@ -268,13 +273,23 @@ export async function startServer({
       const { pathname } = url;
 
       if (pathname === "/api/health" && request.method === "GET") {
-        send(response, 200, { status: "ok", apiVersion: 4, imports: 1 });
+        send(response, 200, { status: "ok", apiVersion: 4, imports: 2 });
         return;
       }
 
       if (pathname === "/api/parameters" && request.method === "GET") {
         send(response, 200, { ...parameters, propositionTypes });
         return;
+      }
+
+      if (["/api/import/authorize", "/api/import/preview", "/api/import/records"].includes(pathname) && request.method === "POST") {
+        let password;
+        try { password = decodeURIComponent(request.headers["x-import-password"] || ""); } catch { password = ""; }
+        if (!hasValidTransferPassword(password)) {
+          send(response, 401, { error: "Senha de importação incorreta. Use a mesma senha da exportação." });
+          return;
+        }
+        if (pathname === "/api/import/authorize") { send(response, 200, { authorized: true }); return; }
       }
 
       if (pathname === "/api/import/preview" && request.method === "POST") {
@@ -303,7 +318,14 @@ export async function startServer({
       }
 
       if (["/api/propositions", "/api/camara/proposicoes"].includes(pathname) && request.method === "GET") {
-        send(response, 200, await propositions.search(url.searchParams));
+        const controller = new AbortController();
+        const disconnect = () => { if (!response.writableEnded) controller.abort(); };
+        response.once("close", disconnect);
+        if (response.destroyed) controller.abort();
+        try {
+          const result = await propositions.search(url.searchParams, { signal: controller.signal });
+          if (!response.destroyed) send(response, 200, result);
+        } finally { response.off("close", disconnect); }
         return;
       }
 
@@ -521,7 +543,7 @@ export async function startServer({
 
       if (pathname === "/api/export.csv" && request.method === "POST") {
         const credentials = await readJson(request);
-        if (!hasValidExportPassword(credentials.password)) {
+        if (!hasValidTransferPassword(credentials.password)) {
           sendError(response, 401, "Senha de exportação incorreta.");
           return;
         }
@@ -545,6 +567,7 @@ export async function startServer({
 
       sendError(response, 405, "Método não permitido.");
     } catch (error) {
+      if (response.destroyed) return;
       if (error instanceof ValidationError) {
         sendError(response, 422, error.message, error.fields);
         return;
@@ -588,6 +611,7 @@ export async function startServer({
       clearTimeout(monitorTimer);
       await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
       await monitorRun;
+      officialRequests.close();
       database.close();
     }
   };

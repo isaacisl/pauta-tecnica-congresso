@@ -61,7 +61,7 @@ test("disponibiliza os parâmetros extraídos da planilha", async () => {
   assert.equal(payload.areasTecnicas.length, 44);
   assert.equal(payload.responsaveis.length, 168);
   assert.deepEqual(payload.responsaveisPorArea["Central de Dados"], ["Isaac Lacerda", "Jhonatan Pires", "João Krebs", "Luidy Santos"]);
-  assert.deepEqual(payload.pareceres, ["Sim", "Não", "Em andamento"]);
+  assert.deepEqual(payload.pareceres, ["Sim", "Não", "Em andamento", "N/I"]);
   assert.ok(payload.propositionTypes.some(([code]) => code === "PRLP(V)"));
 
   const emptyFilterOptions = await (await request("/api/filter-options")).json();

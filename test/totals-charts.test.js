@@ -4,6 +4,17 @@ import { chartSeries, donutBackground, groupAreaPositions, areaChartRows } from 
 
 const positions = ["Favorável", "Desfavorável", "Indiferente"];
 
+test("N/I aparece como categoria neutra e participa dos totais dos gráficos", () => {
+  for (const kind of ["opinion", "amendment", "position"]) {
+    const series = chartSeries(["Sim", "N/I"], [{ label: "Sim", count: 1 }, { label: "N/I", count: 2 }], kind);
+    assert.equal(series[1].color, "#62758a");
+    assert.equal(series[1].count, 2);
+    assert.equal(series.reduce((sum, item) => sum + item.count, 0), 3);
+  }
+  const positions = chartSeries(["Indiferente", "N/I"], [{ label: "Indiferente", count: 1 }, { label: "N/I", count: 1 }], "position");
+  assert.notEqual(positions[0].color, positions[1].color, "ausência de informação é diferente de posicionamento indiferente");
+});
+
 test("gráficos incluem categorias zeradas e mantêm cores consistentes", () => {
   const series = chartSeries(positions, [{ label: "Favorável", count: 3 }, { label: "Indiferente", count: 1 }], "position");
   assert.deepEqual(series.map(item => item.count), [3, 0, 1]);

@@ -6,8 +6,8 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261029-3" />
-    <link rel="stylesheet" href="/record-import.css?v=20261029-4" />
+    <link rel="stylesheet" href="/styles.css?v=20261030-6" />
+    <link rel="stylesheet" href="/record-import.css?v=20261103-1" />
   </head>
   <body>
     <header class="app-header">
@@ -60,22 +60,6 @@
           </div>
         </div>
 
-        <div class="summary-row" aria-live="polite">
-          <div class="summary-item">
-            <span class="summary-icon summary-icon-blue" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h4" /></svg>
-            </span>
-            <span><strong id="total-records">0</strong><small>registros na base</small></span>
-          </div>
-          <div class="summary-divider"></div>
-          <div class="summary-item">
-            <span class="summary-icon summary-icon-green" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
-            </span>
-            <span><strong id="filtered-records">0</strong><small>registros encontrados</small></span>
-          </div>
-        </div>
-
         <section class="filter-card" aria-labelledby="filter-title">
           <div class="filter-heading">
             <div>
@@ -92,41 +76,47 @@
                 <input id="filter-q" name="q" type="search" placeholder="Projeto, autor ou ementa" aria-label="Buscar por projeto, autor, ementa, comissão ou responsável" autocomplete="off" />
               </span>
             </label>
-            <label class="field">
+            <div class="field">
               <span>Área técnica</span>
-              <select id="filter-area" name="areaTecnica"><option value="">Todas as áreas</option></select>
-            </label>
-            <label class="field">
+              <details id="filter-area" class="checkbox-filter" data-filter-name="areaTecnica" data-label="Área técnica" data-placeholder="Todas as áreas" data-searchable="true"></details>
+            </div>
+            <div class="field">
               <span>Responsável</span>
-              <select id="filter-responsavel" name="responsavel"><option value="">Todas as pessoas</option></select>
-            </label>
-            <label class="field">
+              <details id="filter-responsavel" class="checkbox-filter" data-filter-name="responsavel" data-label="Responsável" data-placeholder="Todas as pessoas" data-searchable="true"></details>
+            </div>
+            <div class="field">
               <span>Parecer elaborado</span>
-              <select id="filter-parecer" name="haParecer"><option value="">Todos os status</option></select>
-            </label>
-            <label class="field">
+              <details id="filter-parecer" class="checkbox-filter" data-filter-name="haParecer" data-label="Parecer elaborado" data-placeholder="Todos os status"></details>
+            </div>
+            <div class="field">
               <span>Sugestão de emenda</span>
-              <select id="filter-emenda" name="sugestaoEmenda"><option value="">Todas as opções</option></select>
-            </label>
-            <label class="field">
+              <details id="filter-emenda" class="checkbox-filter" data-filter-name="sugestaoEmenda" data-label="Sugestão de emenda" data-placeholder="Todas as opções"></details>
+            </div>
+            <div class="field">
               <span>Posicionamento</span>
-              <select id="filter-posicionamento" name="posicionamento"><option value="">Todos</option></select>
-            </label>
+              <details id="filter-posicionamento" class="checkbox-filter" data-filter-name="posicionamento" data-label="Posicionamento" data-placeholder="Todos"></details>
+            </div>
+            <div class="field">
+              <span>Prioridade</span>
+              <details id="filter-prioridade" class="checkbox-filter" data-filter-name="prioridade" data-label="Prioridade" data-placeholder="Todas"></details>
+            </div>
           </form>
+          <div id="records-active-filters" class="active-filters" role="group" aria-label="Filtros ativos dos registros" hidden></div>
         </section>
 
         <section class="table-card" aria-labelledby="table-title">
           <div class="table-heading">
             <div>
-              <span class="section-kicker">Base de dados</span>
               <h2 id="table-title">Lista de registros</h2>
+              <p id="record-count-label" class="records-count-summary" role="status" aria-live="polite">Carregando registros…</p>
             </div>
             <div class="table-tools">
-              <span id="record-count-label" class="count-pill">0 registros</span>
               <div id="records-sort-control" class="sort-control">
-                <button id="records-sort-button" class="button button-secondary sort-button" type="button" aria-expanded="false" aria-controls="records-sort-options">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4" /></svg>
-                  <span>Classificar<small id="records-sort-label">Inclusão · mais recentes</small></span>
+                <button id="records-sort-button" class="button button-secondary sort-button" type="button" aria-expanded="false" aria-controls="records-sort-options" title="Classificar registros">
+                  <span class="sort-button-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4v16m-3-3 3 3 3-3M14 5h6m-6 6h4m-4 6h2" /></svg></span>
+                  <span class="sr-only">Classificar registros: </span>
+                  <span id="records-sort-label" class="sort-button-value">Inclusão · mais recentes</span>
+                  <svg class="sort-button-chevron" aria-hidden="true" viewBox="0 0 20 20"><path d="m5 8 5 5 5-5" /></svg>
                 </button>
                 <fieldset id="records-sort-options" class="sort-options" hidden>
                   <legend class="sr-only">Classificação dos registros</legend>
@@ -147,16 +137,17 @@
           </div>
 
           <div id="table-wrapper" class="table-wrapper" hidden>
-            <table>
+            <table class="records-table">
               <thead>
                 <tr>
                   <th>Área técnica</th>
                   <th>Responsável</th>
                   <th>Projeto</th>
                   <th>Posicionamento</th>
-                  <th id="created-date-heading" aria-sort="descending">Data de inclusão</th>
+                  <th>Prioridade</th>
+                  <th id="created-date-heading" aria-sort="descending">Inclusão</th>
                   <th id="edited-date-heading" aria-sort="none">Última edição</th>
-                  <th><span class="sr-only">Ações</span></th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="records-body"></tbody>
@@ -209,29 +200,34 @@
 
         <section class="totals-toolbar" aria-label="Filtros da totalização">
             <form id="totals-filter-form" class="total-filter-grid">
-              <label class="field">
+              <div class="field">
                 <span>Área técnica</span>
-                <select id="totals-filter-area" name="areaTecnica"><option value="">Todas as áreas</option></select>
-              </label>
-              <label class="field">
+                <details id="totals-filter-area" class="checkbox-filter" data-filter-name="areaTecnica" data-label="Área técnica" data-placeholder="Todas as áreas" data-searchable="true"></details>
+              </div>
+              <div class="field">
                 <span>Responsável</span>
-                <select id="totals-filter-responsavel" name="responsavel"><option value="">Todos os responsáveis</option></select>
-              </label>
-              <label class="field">
+                <details id="totals-filter-responsavel" class="checkbox-filter" data-filter-name="responsavel" data-label="Responsável" data-placeholder="Todos os responsáveis" data-searchable="true"></details>
+              </div>
+              <div class="field">
                 <span>Parecer elaborado</span>
-                <select id="totals-filter-parecer" name="haParecer"><option value="">Todos</option></select>
-              </label>
-              <label class="field">
+                <details id="totals-filter-parecer" class="checkbox-filter" data-filter-name="haParecer" data-label="Parecer elaborado" data-placeholder="Todos"></details>
+              </div>
+              <div class="field">
                 <span>Sugestão de emenda</span>
-                <select id="totals-filter-emenda" name="sugestaoEmenda"><option value="">Todas</option></select>
-              </label>
-              <label class="field">
+                <details id="totals-filter-emenda" class="checkbox-filter" data-filter-name="sugestaoEmenda" data-label="Sugestão de emenda" data-placeholder="Todas"></details>
+              </div>
+              <div class="field">
                 <span>Posicionamento</span>
-                <select id="totals-filter-posicionamento" name="posicionamento"><option value="">Todos</option></select>
-              </label>
+                <details id="totals-filter-posicionamento" class="checkbox-filter" data-filter-name="posicionamento" data-label="Posicionamento" data-placeholder="Todos"></details>
+              </div>
+              <div class="field">
+                <span>Prioridade</span>
+                <details id="totals-filter-prioridade" class="checkbox-filter" data-filter-name="prioridade" data-label="Prioridade" data-placeholder="Todas"></details>
+              </div>
             </form>
             <button id="clear-totals-filters" class="filter-clear-button" type="button" disabled>Limpar filtros</button>
         </section>
+        <div id="totals-active-filters" class="active-filters totals-active-filters" role="group" aria-label="Filtros ativos da totalização" hidden></div>
 
         <div id="totals-summary" class="totals-metrics" aria-label="Indicadores da seleção">
           <div class="totals-metric totals-metric-primary"><span>Projetos distintos</span><strong id="unique-projects">0</strong></div>
@@ -295,11 +291,13 @@
         <div class="record-tabs" role="tablist" aria-label="Detalhes do registro">
           <button id="details-tab-project" class="record-tab" type="button" role="tab" aria-controls="details-panel-project" aria-selected="true" data-details-tab="project">Projeto</button>
           <button id="details-tab-followup" class="record-tab" type="button" role="tab" aria-controls="details-panel-followup" aria-selected="false" data-details-tab="followup" tabindex="-1">Acompanhamento</button>
+          <button id="details-tab-documents" class="record-tab" type="button" role="tab" aria-controls="details-panel-documents" aria-selected="false" data-details-tab="documents" tabindex="-1">Documentos (0)</button>
         </div>
         <div class="dialog-body details-body">
           <div id="details-assignment-warning"></div>
           <div id="details-panel-project" role="tabpanel" aria-labelledby="details-tab-project"></div>
           <div id="details-panel-followup" role="tabpanel" aria-labelledby="details-tab-followup" hidden></div>
+          <div id="details-panel-documents" role="tabpanel" aria-labelledby="details-tab-documents" hidden></div>
         </div>
         <div class="dialog-footer"><button id="details-edit" class="button button-primary" type="button">Editar registro</button></div>
       </div>
@@ -344,16 +342,18 @@
         </div>
 
         <div class="form-steps" aria-label="Etapas do cadastro">
-          <button id="step-project" class="form-step is-current" type="button" data-form-step="project" aria-current="step"><span class="step-number">1</span><span>Projeto</span></button>
+          <button id="step-project" class="form-step is-current" type="button" data-form-step="project" aria-controls="form-stage-project" aria-current="step"><span class="step-number">1</span><span>Projeto</span></button>
           <span class="step-connector" aria-hidden="true"></span>
-          <button id="step-followup" class="form-step" type="button" data-form-step="followup"><span class="step-number">2</span><span>Responsável</span></button>
+          <button id="step-followup" class="form-step" type="button" data-form-step="followup" aria-controls="form-stage-followup"><span class="step-number">2</span><span>Acompanhamento</span></button>
+          <span class="step-connector" aria-hidden="true"></span>
+          <button id="step-documents" class="form-step" type="button" data-form-step="documents" aria-controls="form-stage-documents"><span class="step-number">3</span><span>Documentos</span></button>
         </div>
 
         <div class="dialog-body">
           <input id="record-id" name="id" type="hidden" />
           <p id="record-conflict" class="record-warning" role="alert" hidden></p>
           <section id="form-stage-project" class="form-stage" aria-labelledby="form-project-title">
-            <div class="stage-heading"><span class="section-kicker">Etapa 1 de 2</span><h3 id="form-project-title">Dados do projeto</h3><p>Localize a matéria e confira as informações de tramitação.</p></div>
+            <div class="stage-heading"><span class="section-kicker">Etapa 1 de 3</span><h3 id="form-project-title">Dados do projeto</h3><p>Localize a matéria e confira as informações de tramitação.</p></div>
           <div class="form-grid">
             <section class="proposition-search form-span-2" aria-labelledby="proposition-search-title">
               <h3 id="proposition-search-title">Buscar proposição na Câmara e no Senado</h3>
@@ -401,7 +401,7 @@
           </section>
           <section id="form-stage-followup" class="form-stage" aria-labelledby="form-followup-title" hidden>
             <div class="selected-project" aria-label="Projeto em acompanhamento"><span>Projeto em acompanhamento</span><strong id="selected-project-name"></strong></div>
-            <div class="stage-heading"><span class="section-kicker">Etapa 2 de 2</span><h3 id="form-followup-title">Responsável</h3><p>Defina a área e a pessoa responsável, registre a análise e acompanhe os documentos.</p></div>
+            <div class="stage-heading"><span class="section-kicker">Etapa 2 de 3</span><h3 id="form-followup-title">Acompanhamento</h3><p>Defina a área, a pessoa responsável e as classificações do acompanhamento.</p></div>
           <p id="assignment-warning" class="assignment-form-warning" role="status" hidden></p>
           <div class="form-grid">
             <label class="field">
@@ -416,36 +416,25 @@
               <small class="field-error" data-error-for="responsavel"></small>
             </label>
             <label class="field form-span-2">
-              <span>Há parecer elaborado? <b aria-hidden="true">*</b></span>
-              <select id="field-parecer" name="haParecer" required><option value="">Selecione</option></select>
+              <span>Há parecer elaborado?</span>
+              <select id="field-parecer" name="haParecer"></select>
+              <small class="field-help">Use N/I nos campos de acompanhamento que ainda serão preenchidos pela área técnica.</small>
               <small class="field-error" data-error-for="haParecer"></small>
             </label>
-            <section class="document-section form-span-2" aria-label="Documentos do registro">
-            <label class="field attachment-field">
-              <span>Adicionar documentos <em>Opcional</em></span>
-              <input
-                id="field-attachment"
-                name="attachment"
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
-              />
-              <small class="field-help">Selecione um ou mais arquivos e informe título e descrição para cada um. Máximo de 20 MB por arquivo.</small>
-            </label>
-            <ul id="pending-attachments" class="document-list" aria-label="Documentos aguardando envio" hidden></ul>
-            <div id="existing-attachment" hidden>
-              <h3 class="document-history-title">Histórico de documentos</h3>
-              <div id="attachment-history"></div>
-            </div>
-            </section>
             <label class="field">
-              <span>Sugestão de emenda <b aria-hidden="true">*</b></span>
-              <select id="field-emenda" name="sugestaoEmenda" required><option value="">Selecione</option></select>
+              <span>Prioridade</span>
+              <select id="field-prioridade" name="prioridade" aria-describedby="prioridade-help"></select>
+              <small id="prioridade-help" class="field-help">Use N/I quando a prioridade ainda não estiver definida.</small>
+              <small class="field-error" data-error-for="prioridade"></small>
+            </label>
+            <label class="field">
+              <span>Sugestão de emenda</span>
+              <select id="field-emenda" name="sugestaoEmenda"></select>
               <small class="field-error" data-error-for="sugestaoEmenda"></small>
             </label>
             <label class="field form-span-2">
-              <span>Posicionamento da área técnica <b aria-hidden="true">*</b></span>
-              <select id="field-posicionamento" name="posicionamento" required><option value="">Selecione</option></select>
+              <span>Posicionamento da área técnica</span>
+              <select id="field-posicionamento" name="posicionamento"></select>
               <small class="field-error" data-error-for="posicionamento"></small>
             </label>
             <section id="record-history" class="record-history form-span-2" aria-labelledby="record-history-title" hidden>
@@ -471,6 +460,22 @@
             </section>
           </div>
           </section>
+          <section id="form-stage-documents" class="form-stage" aria-labelledby="form-documents-title" hidden>
+            <div class="selected-project" aria-label="Projeto dos documentos"><span>Projeto em acompanhamento</span><strong id="documents-project-name"></strong></div>
+            <div class="stage-heading"><span class="section-kicker">Etapa 3 de 3</span><h3 id="form-documents-title">Documentos</h3><p>Adicione os arquivos do acompanhamento. Você também pode salvar sem adicionar documentos.</p></div>
+            <section class="document-section" aria-label="Documentos do registro">
+              <label class="field attachment-field">
+                <span>Adicionar documentos <em>Opcional</em></span>
+                <input id="field-attachment" name="attachment" type="file" multiple accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+                <small class="field-help">Selecione um ou mais arquivos e informe título e descrição para cada um. Máximo de 20 MB por arquivo.</small>
+              </label>
+              <ul id="pending-attachments" class="document-list" aria-label="Documentos aguardando envio" hidden></ul>
+              <div id="existing-attachment" hidden>
+                <h3 class="document-history-title">Histórico de documentos</h3>
+                <div id="attachment-history"></div>
+              </div>
+            </section>
+          </section>
         </div>
 
         <div class="dialog-footer">
@@ -478,11 +483,11 @@
           <span class="footer-spacer"></span>
           <button id="cancel-dialog" class="button button-ghost" type="button">Fechar</button>
           <button id="previous-stage" class="button button-ghost" type="button" hidden>Voltar ao projeto</button>
-          <button id="next-stage" class="button button-primary" type="button">Continuar para responsável</button>
           <button id="save-record" class="button button-primary" type="submit" hidden>
             <span class="button-label">Salvar registro</span>
             <span class="button-loading" hidden><span class="spinner spinner-small"></span> Salvando…</span>
           </button>
+          <button id="next-stage" class="button button-primary" type="button">Continuar para acompanhamento</button>
         </div>
       </form>
     </dialog>
@@ -568,6 +573,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261029-8"></script>
+    <script type="module" src="/app.js?v=20261103-2"></script>
   </body>
 </html>
