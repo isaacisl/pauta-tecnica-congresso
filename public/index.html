@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261030-6" />
+    <link rel="stylesheet" href="/styles.css?v=20261111-2" />
     <link rel="stylesheet" href="/record-import.css?v=20261103-1" />
   </head>
   <body>
@@ -60,6 +60,15 @@
           </div>
         </div>
 
+        <section id="updates-overview" class="updates-overview" aria-labelledby="updates-overview-title" hidden>
+          <span class="updates-overview-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4M12 5v5m0 3v.1" /></svg></span>
+          <div class="updates-overview-copy">
+            <h2 id="updates-overview-title">Atualizações pendentes</h2>
+            <p id="updates-overview-summary" role="status" aria-live="polite"></p>
+          </div>
+          <button id="show-updated-records" class="button updates-overview-action" type="button" aria-pressed="false">Ver atualizados</button>
+        </section>
+
         <section class="filter-card" aria-labelledby="filter-title">
           <div class="filter-heading">
             <div>
@@ -100,6 +109,10 @@
               <span>Prioridade</span>
               <details id="filter-prioridade" class="checkbox-filter" data-filter-name="prioridade" data-label="Prioridade" data-placeholder="Todas"></details>
             </div>
+            <div class="field">
+              <span>Atualizações</span>
+              <details id="filter-atualizacoes" class="checkbox-filter" data-filter-name="atualizacoes" data-label="Atualizações" data-placeholder="Todas"></details>
+            </div>
           </form>
           <div id="records-active-filters" class="active-filters" role="group" aria-label="Filtros ativos dos registros" hidden></div>
         </section>
@@ -115,17 +128,18 @@
                 <button id="records-sort-button" class="button button-secondary sort-button" type="button" aria-expanded="false" aria-controls="records-sort-options" title="Classificar registros">
                   <span class="sort-button-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4v16m-3-3 3 3 3-3M14 5h6m-6 6h4m-4 6h2" /></svg></span>
                   <span class="sr-only">Classificar registros: </span>
-                  <span id="records-sort-label" class="sort-button-value">Inclusão · mais recentes</span>
+                  <span id="records-sort-label" class="sort-button-value">Atualizações primeiro</span>
                   <svg class="sort-button-chevron" aria-hidden="true" viewBox="0 0 20 20"><path d="m5 8 5 5 5-5" /></svg>
                 </button>
                 <fieldset id="records-sort-options" class="sort-options" hidden>
                   <legend class="sr-only">Classificação dos registros</legend>
-                  <strong>Classificar por data</strong>
-                  <label><input type="radio" name="records-sort" value="created-desc" checked /> Inclusão: mais recentes primeiro</label>
+                  <strong>Classificar registros</strong>
+                  <label><input type="radio" name="records-sort" value="updates-first" checked /> Atualizações pendentes primeiro</label>
+                  <label><input type="radio" name="records-sort" value="created-desc" /> Inclusão: mais recentes primeiro</label>
                   <label><input type="radio" name="records-sort" value="created-asc" /> Inclusão: mais antigas primeiro</label>
                   <label><input type="radio" name="records-sort" value="edited-desc" /> Edição: mais recentes primeiro</label>
                   <label><input type="radio" name="records-sort" value="edited-asc" /> Edição: mais antigas primeiro</label>
-                  <small>Registros sem edição ficam no final ao classificar por edição.</small>
+                  <small>Atualizações primeiro usa a detecção mais recente. Registros sem edição ficam no final ao classificar por edição.</small>
                 </fieldset>
               </div>
             </div>
@@ -573,6 +587,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261111-1"></script>
+    <script type="module" src="/app.js?v=20261111-2"></script>
   </body>
 </html>

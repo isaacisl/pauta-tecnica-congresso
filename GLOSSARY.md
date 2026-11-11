@@ -10,6 +10,9 @@ Setor da CNM responsável por um acompanhamento. Cada responsável pode atuar em
 **Consultor**:
 Responsável que atua nas áreas técnicas às quais está vinculado. Consultor não é uma área técnica.
 
+**Atualização pendente**:
+Nova tramitação oficial de uma matéria que ainda não foi marcada como vista em um acompanhamento. A confirmação é compartilhada pelos usuários daquele acompanhamento; acompanhamentos da mesma matéria podem ter pendências diferentes.
+
 **Prioridade**:
 Classificação de um registro de acompanhamento como Alta, Média ou Baixa. Cada registro tem sua própria prioridade, que pode ser alterada posteriormente.
 

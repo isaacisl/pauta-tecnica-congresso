@@ -214,7 +214,8 @@ function getFilters(url) {
     haParecer: url.searchParams.getAll("haParecer"),
     sugestaoEmenda: url.searchParams.getAll("sugestaoEmenda"),
     posicionamento: url.searchParams.getAll("posicionamento"),
-    prioridade: url.searchParams.getAll("prioridade")
+    prioridade: url.searchParams.getAll("prioridade"),
+    atualizacoes: url.searchParams.getAll("atualizacoes")
   };
 }
 
@@ -273,7 +274,7 @@ export async function startServer({
       const { pathname } = url;
 
       if (pathname === "/api/health" && request.method === "GET") {
-        send(response, 200, { status: "ok", apiVersion: 4, imports: 2 });
+        send(response, 200, { status: "ok", apiVersion: 4, imports: 2, updateNotices: 1 });
         return;
       }
 
@@ -342,8 +343,9 @@ export async function startServer({
       }
 
       if (pathname === "/api/records" && request.method === "GET") {
-        const records = database.list(getFilters(url));
-        send(response, 200, { records, count: records.length });
+        const filters = getFilters(url);
+        const records = database.list(filters);
+        send(response, 200, { records, count: records.length, pendingUpdates: database.pendingUpdateCount(filters) });
         return;
       }
 

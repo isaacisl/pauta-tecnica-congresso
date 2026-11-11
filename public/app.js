@@ -4,7 +4,7 @@ import { sameMatter, navigationValues } from "./record-utils.js?v=20261001-1";
 import { initializeHistoryUI } from "./record-history.js?v=20261015-1";
 import { documentMetadataErrors } from "./document-utils.js?v=20261015-1";
 import { initializeDocumentInfo } from "./document-info.js?v=20261015-1";
-import { recordSortOptions, sortRecords } from "./record-sort.js?v=20261015-1";
+import { recordSortOptions, sortRecords } from "./record-sort.js?v=20261111-2";
 import { chartColor, chartSeries, donutBackground, groupAreaPositions, areaChartRows } from "./totals-charts.js?v=20261030-1";
 import { initializeRecordImport } from "./record-import.js?v=20261111-1";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
@@ -22,9 +22,10 @@ const state = {
   totalFilterOptions: null,
   records: [],
   overallTotal: null,
+  pendingUpdates: null,
   recordsPage: 1,
   recordsPageSize: 10,
-  recordsSort: "created-desc",
+  recordsSort: "updates-first",
   recordsFilterKey: null,
   recordsLoading: false,
   recordsSearchTimer: null,
@@ -59,6 +60,10 @@ const elements = {
   filterEmenda: document.querySelector("#filter-emenda"),
   filterPosicionamento: document.querySelector("#filter-posicionamento"),
   filterPrioridade: document.querySelector("#filter-prioridade"),
+  filterAtualizacoes: document.querySelector("#filter-atualizacoes"),
+  updatesOverview: document.querySelector("#updates-overview"),
+  updatesSummary: document.querySelector("#updates-overview-summary"),
+  showUpdatedRecords: document.querySelector("#show-updated-records"),
   clearFilters: document.querySelector("#clear-filters"),
   totalsFilterForm: document.querySelector("#totals-filter-form"),
   totalsFilterArea: document.querySelector("#totals-filter-area"),
@@ -245,6 +250,7 @@ function renderRecordFilterOptions() {
   renderCheckboxOptions(elements.filterEmenda, options.emendas);
   renderCheckboxOptions(elements.filterPosicionamento, options.posicionamentos);
   renderCheckboxOptions(elements.filterPrioridade, options.prioridades);
+  renderCheckboxOptions(elements.filterAtualizacoes, ["Pendentes"]);
 }
 
 function renderTotalFilterOptions() {
@@ -476,6 +482,7 @@ function renderPagination() {
 function setRecordsLoading(loading) {
   state.recordsLoading = loading;
   elements.sortButton.disabled = loading;
+  elements.showUpdatedRecords.disabled = loading;
   elements.tableWrapper.setAttribute("aria-busy", String(loading));
   elements.tableWrapper.inert = loading;
   renderPagination();
@@ -516,11 +523,12 @@ function renderRecords() {
         const content = isStatus
           ? statusChip(record[field])
           : `<span class="${["areaTecnica", "projeto"].includes(field) ? "cell-primary " : ""}${record[field] === "N/I" ? "cell-uninformed " : ""}cell-truncate" title="${escapeHtml(record[field])}">${escapeHtml(record[field])}</span>`;
-        const indicator = field === "projeto" && record.tramitationNotice?.count
-          ? `<span class="notification-dot" role="img" aria-label="${record.tramitationNotice.count} ${record.tramitationNotice.count === 1 ? "nova tramitação" : "novas tramitações"}" title="${record.tramitationNotice.count} ${record.tramitationNotice.count === 1 ? "nova tramitação" : "novas tramitações"}"></span>` : "";
+        const updateCount = Number(record.tramitationNotice?.count) || 0;
+        const indicator = field === "projeto" && updateCount > 0
+          ? `<button class="update-badge" type="button" data-details-id="${record.id}" aria-label="Ver ${updateCount} ${updateCount === 1 ? "nova tramitação" : "novas tramitações"} de ${escapeHtml(record.projeto)}"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 3v8m0 4v.1"/><circle cx="10" cy="10" r="8"/></svg><span>${updateCount} ${updateCount === 1 ? "nova tramitação" : "novas tramitações"}</span></button>` : "";
         const assignmentIndicator = field === "responsavel" && record.assignmentIssue
           ? `<button class="assignment-flag" type="button" data-assignment-id="${record.id}" aria-label="Corrigir responsável de ${escapeHtml(record.projeto)}" title="Cadastro pendente: ${escapeHtml(record.assignmentIssue.message)}"><span aria-hidden="true"></span></button>` : "";
-        return `<td data-label="${escapeHtml(label)}"><span class="project-cell-content">${content}${indicator}${assignmentIndicator}</span></td>`;
+        return `<td data-label="${escapeHtml(label)}"><span class="project-cell-content${indicator ? " has-update-badge" : ""}">${content}${indicator}${assignmentIndicator}</span></td>`;
       });
       cells.push(`
         <td data-label="Data de inclusão">
@@ -535,18 +543,19 @@ function renderRecords() {
       cells.push(`
         <td data-label="Ações">
           <span class="row-actions">
-            <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Abrir ${escapeHtml(record.projeto)}${record.tramitationNotice?.count ? `, ${record.tramitationNotice.count} novas tramitações` : ""}" title="Abrir projeto e acompanhamento">
+            <button class="row-action details-action" type="button" data-details-id="${record.id}" aria-label="Abrir ${escapeHtml(record.projeto)}${record.tramitationNotice?.count ? `, ${record.tramitationNotice.count} ${record.tramitationNotice.count === 1 ? "nova tramitação" : "novas tramitações"}` : ""}" title="Abrir projeto e acompanhamento">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
             ${preferredLink ? `<a class="row-action official-action" href="${preferredLink.href}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${escapeHtml(record.projeto)} no site oficial: ${escapeHtml(preferredLink.label)}" title="Abrir no site oficial: ${escapeHtml(preferredLink.label)}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-10 10M20 13v7H4V4h7" /></svg></a>` : ""}
           </span>
         </td>
       `);
-      return `<tr>${cells.join("")}</tr>`;
+      return `<tr${record.tramitationNotice?.count > 0 ? ' class="has-pending-updates"' : ""}>${cells.join("")}</tr>`;
     })
     .join("");
 
   renderRecordCount();
+  renderUpdatesOverview();
   elements.tableLoading.hidden = true;
   elements.tableWrapper.hidden = records.length === 0;
   elements.emptyState.hidden = records.length > 0;
@@ -561,6 +570,22 @@ function renderRecords() {
     elements.emptyNewButton.textContent = filtered ? "Limpar filtros" : "Adicionar registro";
     elements.emptyNewButton.dataset.action = filtered ? "clear" : "new";
   }
+}
+
+function renderUpdatesOverview() {
+  const selected = Boolean(elements.filterAtualizacoes.querySelector('input[value="Pendentes"]:checked'));
+  const count = state.pendingUpdates;
+  elements.updatesOverview.hidden = count === null || (!count && !selected);
+  const others = currentFilters();
+  others.delete("atualizacoes");
+  const scope = others.size ? "nos filtros atuais" : "na base";
+  const summary = count > 0
+    ? `${count} ${count === 1 ? "acompanhamento com novas tramitações" : "acompanhamentos com novas tramitações"} ${scope}.`
+    : `Nenhuma atualização pendente ${scope}.`;
+  if (elements.updatesSummary.textContent !== summary) elements.updatesSummary.textContent = summary;
+  elements.showUpdatedRecords.textContent = selected ? "Exibir todos" : "Ver atualizados";
+  elements.showUpdatedRecords.setAttribute("aria-pressed", String(selected));
+  elements.updatesOverview.classList.toggle("is-empty", count === 0);
 }
 
 async function loadRecords({ showLoading = false } = {}) {
@@ -588,6 +613,7 @@ async function loadRecords({ showLoading = false } = {}) {
     if (state.recordsFilterKey !== params.toString()) state.recordsPage = 1;
     state.recordsFilterKey = params.toString();
     state.records = payload.records;
+    state.pendingUpdates = payload.pendingUpdates;
     if (!params.size) state.overallTotal = payload.count;
     renderRecords();
   } catch (error) {
@@ -605,9 +631,13 @@ async function refreshRecordsInBackground() {
   const filterKey = currentFilters().toString();
   const requestId = state.requestId;
   try {
-    const payload = await api(`/api/records${filterKey ? `?${filterKey}` : ""}`);
+    const suffix = filterKey ? `?${filterKey}` : "";
+    const [payload, filterOptions] = await Promise.all([api(`/api/records${suffix}`), api(`/api/filter-options${suffix}`)]);
     if (requestId !== state.requestId || filterKey !== currentFilters().toString() || document.querySelector("dialog[open]")) return;
     state.records = payload.records;
+    state.pendingUpdates = payload.pendingUpdates;
+    state.recordFilterOptions = filterOptions;
+    renderRecordFilterOptions();
     if (!filterKey) state.overallTotal = payload.count;
     renderRecords();
   } catch { /* A temporary refresh failure must not interrupt the user's work. */ }
@@ -1568,6 +1598,11 @@ function closeOnBackdropClick(dialog, closeHandler) {
 }
 
 function setupEvents() {
+  elements.showUpdatedRecords.addEventListener("click", () => {
+    const pending = elements.filterAtualizacoes.querySelector('input[value="Pendentes"]');
+    pending.checked = !pending.checked;
+    pending.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   elements.sortButton.addEventListener("click", () => setSortMenuOpen(elements.sortOptions.hidden));
   elements.sortOptions.addEventListener("change", event => {
     if (!Object.hasOwn(recordSortOptions, event.target.value)) return;
@@ -1710,9 +1745,8 @@ function setupEvents() {
       const result = await api(`/api/records/${id}/tramitations/acknowledge`, {
         method: "POST", body: JSON.stringify({ throughEventId: Number(button.dataset.acknowledgeTramitations) })
       });
-      state.records = state.records.map((record) => record.id === id ? result.record : record);
-      renderRecords();
-      if (detailsDialog.open) {
+      await refreshData();
+      if (detailsDialog.open && Number(detailsDialog.dataset.recordId) === id) {
         button.closest(".tramitation-notice").outerHTML = result.record.tramitationNotice?.count
           ? tramitationNoticeMarkup(result.record)
           : '<section class="detail-section tramitation-notice"><p class="tramitation-seen-message">Atualizações marcadas como vistas.</p></section>';
@@ -1809,7 +1843,7 @@ function setupEvents() {
 async function init() {
   try {
     const health = await api("/api/health");
-    if (health.apiVersion !== 4) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
+    if (health.apiVersion !== 4 || health.updateNotices !== 1) throw new Error("O servidor ainda está na versão anterior. Reinicie o serviço da Pauta Técnica e recarregue esta página antes de editar os registros.");
     state.parameters = await api("/api/parameters");
     if (!state.parameters.responsaveisPorArea) throw new Error("Reinicie o sistema e recarregue esta página para usar a nova lista de áreas e responsáveis.");
     setupEvents();

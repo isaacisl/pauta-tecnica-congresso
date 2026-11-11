@@ -10,6 +10,21 @@ const records = [
   { id: 5, createdAt: "2026-01-05T10:00:00Z", editedAt: "inválido" }
 ];
 
+test("atualizações pendentes vêm antes da paginação e usam a detecção mais recente", () => {
+  const values = [
+    { id: 1, createdAt: "2026-06-01", tramitationNotice: { count: 0, events: [] } },
+    { id: 2, createdAt: "2026-01-01", tramitationNotice: { count: 2, events: [{ date: "2099-01-01", detectedAt: "2026-11-10T10:00:00Z" }, { detectedAt: "2026-11-09T10:00:00Z" }] } },
+    { id: 3, createdAt: "2026-03-01", tramitationNotice: { count: 1, events: [{ date: "2000-01-01", detectedAt: "2026-11-11T10:00:00Z" }] } },
+    { id: 4, createdAt: "2026-04-01", tramitationNotice: { count: 1, events: [{ detectedAt: "inválido" }] } },
+    { id: 5, createdAt: "2026-06-02", tramitationNotice: { count: 0, events: [{ detectedAt: "2099-01-01" }] } }
+  ];
+  const before = structuredClone(values);
+  assert.deepEqual(sortRecords(values).map(row => row.id), [3, 2, 4, 5, 1]);
+  assert.deepEqual(sortRecords(values, "updates-first").slice(0, 2).map(row => row.id), [3, 2]);
+  assert.deepEqual(sortRecords(values, "created-desc").map(row => row.id), [5, 1, 4, 3, 2]);
+  assert.deepEqual(values, before);
+});
+
 test("classifica pela data real de inclusão ou edição, com desempate determinístico e sem modificar a origem", () => {
   const before = structuredClone(records);
   const ids = sort => sortRecords(records, sort).map(record => record.id);
