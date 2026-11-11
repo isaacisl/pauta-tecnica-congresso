@@ -4,6 +4,12 @@ Vocabulário do acompanhamento de matérias legislativas pelas áreas técnicas.
 
 ## Linguagem
 
+**Área técnica**:
+Setor da CNM responsável por um acompanhamento. Cada responsável pode atuar em uma ou mais áreas técnicas.
+
+**Consultor**:
+Responsável que atua nas áreas técnicas às quais está vinculado. Consultor não é uma área técnica.
+
 **Prioridade**:
 Classificação de um registro de acompanhamento como Alta, Média ou Baixa. Cada registro tem sua própria prioridade, que pode ser alterada posteriormente.
 

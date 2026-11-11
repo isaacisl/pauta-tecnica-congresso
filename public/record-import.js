@@ -1,4 +1,4 @@
-import { responsibleOptions } from "./team-utils.js?v=20261002-7";
+import { responsibleOptions } from "./team-utils.js?v=20261111-1";
 import { documentMetadataErrors } from "./document-utils.js?v=20261015-1";
 import { parseImportProject, mappedImportRows, importRowIssues, importIdentity, importDuplicateIndex } from "./import-utils.js?v=20261030-3";
 

@@ -6,10 +6,10 @@ import { documentMetadataErrors } from "./document-utils.js?v=20261015-1";
 import { initializeDocumentInfo } from "./document-info.js?v=20261015-1";
 import { recordSortOptions, sortRecords } from "./record-sort.js?v=20261015-1";
 import { chartColor, chartSeries, donutBackground, groupAreaPositions, areaChartRows } from "./totals-charts.js?v=20261030-1";
-import { initializeRecordImport } from "./record-import.js?v=20261103-2";
+import { initializeRecordImport } from "./record-import.js?v=20261111-1";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
-import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261002-7";
+import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261111-1";
 
 const state = {
   editingRevision: null,

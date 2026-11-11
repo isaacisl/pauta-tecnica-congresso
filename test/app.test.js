@@ -58,9 +58,11 @@ test("disponibiliza os parâmetros extraídos da planilha", async () => {
   const response = await request("/api/parameters");
   const payload = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(payload.areasTecnicas.length, 44);
-  assert.equal(payload.responsaveis.length, 168);
-  assert.deepEqual(payload.responsaveisPorArea["Central de Dados"], ["Isaac Lacerda", "Jhonatan Pires", "João Krebs", "Luidy Santos"]);
+  assert.equal(payload.areasTecnicas.length, 46);
+  assert.equal(payload.responsaveis.length, 173);
+  assert.deepEqual(payload.responsaveisPorArea["Central de Dados"], ["Isaac Lacerda", "Jhonatan Pires", "João Krebs", "Luidy Santos", "Valdery Brito"]);
+  assert.deepEqual(payload.responsaveisPorArea["Políticas sobre Drogas"], ["Vitória Jadallah"]);
+  assert.ok(!payload.areasTecnicas.includes("Consultor"));
   assert.deepEqual(payload.pareceres, ["Sim", "Não", "Em andamento", "N/I"]);
   assert.ok(payload.propositionTypes.some(([code]) => code === "PRLP(V)"));
 
