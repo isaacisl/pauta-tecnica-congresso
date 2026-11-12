@@ -8,13 +8,13 @@ O ponto vermelho atual é discreto e as novidades podem ficar em páginas poster
 
 ## Solution
 
-Apresentar um aviso acima da lista com contador e ação Ver atualizados, destacar as linhas com um selo textual de novas tramitações, oferecer filtro de atualizações pendentes combinado com os demais filtros e abrir a lista com as novidades primeiro.
+Destacar as linhas com um selo textual de novas tramitações, oferecer filtro de atualizações pendentes combinado com os demais filtros e abrir a lista com as novidades primeiro. Conforme ajuste solicitado em 12/11/2026, não apresentar card de resumo nem botão acima dos filtros.
 
 ## User Stories
 
 1. Como usuário, quero perceber imediatamente que há acompanhamentos com atualizações pendentes.
-2. Como usuário, quero ver quantos acompanhamentos da seleção atual possuem novidades, mesmo antes de paginar.
-3. Como usuário, quero clicar em Ver atualizados para exibir apenas acompanhamentos com pendências, preservando área, responsável e demais filtros.
+2. Como usuário, quero identificar os acompanhamentos com novidades na própria lista.
+3. Como usuário, quero usar Atualizações → Pendentes para exibir apenas acompanhamentos com pendências, preservando área, responsável e demais filtros.
 4. Como usuário, quero remover somente esse filtro e voltar aos outros resultados sem perder a seleção anterior.
 5. Como usuário, quero identificar cada acompanhamento com um selo textual e a quantidade de novas tramitações.
 6. Como usuário, quero abrir os detalhes pelo selo para ler as movimentações oficiais.
@@ -23,7 +23,7 @@ Apresentar um aviso acima da lista com contador e ação Ver atualizados, destac
 9. Como usuário, quero combinar o filtro de atualizações com todos os filtros e com a busca textual.
 10. Como usuário, quero que a exportação corresponda aos acompanhamentos filtrados.
 11. Como usuário, quero que marcar como visto remova o destaque e retire aquele acompanhamento do filtro de pendentes, mantendo a pendência de outros acompanhamentos.
-12. Como usuário, quero receber novos contadores e opções nas atualizações periódicas da página.
+12. Como usuário, quero receber a lista e as opções atualizadas nas verificações periódicas da página.
 13. Como usuário de teclado ou celular, quero acessar as mesmas informações e ações sem depender apenas da cor.
 
 ## Implementation Decisions
@@ -31,7 +31,7 @@ Apresentar um aviso acima da lista com contador e ação Ver atualizados, destac
 - Atualização significa tramitação detectada ainda não marcada como vista. Confirmação compartilhada por acompanhamento, sem alterar a classificação Alta/Média/Baixa/N/I.
 - Reutilizar os eventos e o cursor de leitura existentes. Nenhuma migração ou mudança nos dados salvos é necessária.
 - Filtro Atualizações com opção Pendentes na aba Registros, compatível com os componentes de checkboxes, chips ativos e Limpar filtros existentes.
-- A API de listagem fornece o número de acompanhamentos pendentes dentro dos demais critérios, sem restringir a contagem ao filtro de pendências. O aviso deixa explícito o contexto da seleção.
+- A API de listagem mantém o número de acompanhamentos pendentes dentro dos demais critérios por compatibilidade. A interface concentra o destaque nas próprias linhas, sem card de resumo acima dos filtros.
 - O mesmo predicado deve servir à lista, às opções, aos totais consultados pela API e à exportação, respeitando as fontes monitoráveis e a lixeira.
 - A classificação inicial Atualizações primeiro agrupa pendências e usa a detecção mais recente; empates e resultados sem pendências seguem inclusão mais recente e ID. Não usar a data de última edição como indicação de novidade legislativa.
 - Manter as quatro classificações por data disponíveis. Ordenar o conjunto inteiro antes de paginar.
@@ -52,7 +52,7 @@ Requisitos e interfaces de teste aprovados pelo usuário em 11/11/2026. Na inspe
 
 ## Direção visual
 
-Manter a identidade CNM: azul institucional #004587, texto #192f46, branco #ffffff e superfície #f3f6fa. Concentrar a atenção em um aviso âmbar com fundo #fff8e6 e borda #d69a00; texto de aviso #754700. Usar Inter e os tamanhos existentes. O aviso possui ícone, texto e ação; linhas destacadas usam o mesmo âmbar discreto e selo textual clicável. Sem animação contínua. Preservar o foco visível e adaptar o aviso para botão em largura completa no celular. A única nova superfície de destaque é o aviso; os demais controles mantêm o padrão atual.
+Manter a identidade CNM: azul institucional #004587, texto #192f46, branco #ffffff e superfície #f3f6fa. Concentrar a atenção nas linhas destacadas em âmbar discreto e no selo textual clicável. Usar Inter, os tamanhos e controles existentes, sem animação contínua, com foco visível e adaptação para celular.
 
 ## Resultado — 11/11/2026
 
@@ -62,3 +62,10 @@ Manter a identidade CNM: azul institucional #004587, texto #192f46, branco #ffff
 - Revisão de Padrões: sem achados acionáveis. Revisão de Spec: sem achados acionáveis. Comparação limitada ao escopo local conhecido contra o commit 4934363 na cópia Git de publicação, pois a raiz não possui histórico Git.
 - Backup completo realizado antes do reinício local. Comparação integral preservou 59 registros (58 ativos), todos os campos e tabelas, e 14 documentos com hashes iguais. Nenhuma transferência, alteração de prioridade ou confirmação de aviso real ocorreu na verificação.
 - Servidor local reiniciado e navegador recarregado: quatro acompanhamentos com pendências aparecem no aviso e nas primeiras linhas da lista. Contador e filtro da API conferidos.
+
+## Ajuste solicitado — 12/11/2026
+
+- Removidos o card acima dos filtros, seu contador e os botões Ver atualizados/Exibir todos, incluindo as referências e estilos exclusivos.
+- Mantidos os destaques das linhas, selos clicáveis, filtro Atualizações → Pendentes e classificação Atualizações primeiro.
+- Versões dos arquivos do navegador atualizadas para invalidar cache. Página local recarregada e conferida: card ausente, quatro linhas com pendências continuam destacadas.
+- Sintaxe do JavaScript e cinco testes existentes de ordenação/filtro aprovados. Não foram alterados dados nem regras de monitoramento.

@@ -22,7 +22,6 @@ const state = {
   totalFilterOptions: null,
   records: [],
   overallTotal: null,
-  pendingUpdates: null,
   recordsPage: 1,
   recordsPageSize: 10,
   recordsSort: "updates-first",
@@ -61,9 +60,6 @@ const elements = {
   filterPosicionamento: document.querySelector("#filter-posicionamento"),
   filterPrioridade: document.querySelector("#filter-prioridade"),
   filterAtualizacoes: document.querySelector("#filter-atualizacoes"),
-  updatesOverview: document.querySelector("#updates-overview"),
-  updatesSummary: document.querySelector("#updates-overview-summary"),
-  showUpdatedRecords: document.querySelector("#show-updated-records"),
   clearFilters: document.querySelector("#clear-filters"),
   totalsFilterForm: document.querySelector("#totals-filter-form"),
   totalsFilterArea: document.querySelector("#totals-filter-area"),
@@ -482,7 +478,6 @@ function renderPagination() {
 function setRecordsLoading(loading) {
   state.recordsLoading = loading;
   elements.sortButton.disabled = loading;
-  elements.showUpdatedRecords.disabled = loading;
   elements.tableWrapper.setAttribute("aria-busy", String(loading));
   elements.tableWrapper.inert = loading;
   renderPagination();
@@ -555,7 +550,6 @@ function renderRecords() {
     .join("");
 
   renderRecordCount();
-  renderUpdatesOverview();
   elements.tableLoading.hidden = true;
   elements.tableWrapper.hidden = records.length === 0;
   elements.emptyState.hidden = records.length > 0;
@@ -570,22 +564,6 @@ function renderRecords() {
     elements.emptyNewButton.textContent = filtered ? "Limpar filtros" : "Adicionar registro";
     elements.emptyNewButton.dataset.action = filtered ? "clear" : "new";
   }
-}
-
-function renderUpdatesOverview() {
-  const selected = Boolean(elements.filterAtualizacoes.querySelector('input[value="Pendentes"]:checked'));
-  const count = state.pendingUpdates;
-  elements.updatesOverview.hidden = count === null || (!count && !selected);
-  const others = currentFilters();
-  others.delete("atualizacoes");
-  const scope = others.size ? "nos filtros atuais" : "na base";
-  const summary = count > 0
-    ? `${count} ${count === 1 ? "acompanhamento com novas tramitações" : "acompanhamentos com novas tramitações"} ${scope}.`
-    : `Nenhuma atualização pendente ${scope}.`;
-  if (elements.updatesSummary.textContent !== summary) elements.updatesSummary.textContent = summary;
-  elements.showUpdatedRecords.textContent = selected ? "Exibir todos" : "Ver atualizados";
-  elements.showUpdatedRecords.setAttribute("aria-pressed", String(selected));
-  elements.updatesOverview.classList.toggle("is-empty", count === 0);
 }
 
 async function loadRecords({ showLoading = false } = {}) {
@@ -613,7 +591,6 @@ async function loadRecords({ showLoading = false } = {}) {
     if (state.recordsFilterKey !== params.toString()) state.recordsPage = 1;
     state.recordsFilterKey = params.toString();
     state.records = payload.records;
-    state.pendingUpdates = payload.pendingUpdates;
     if (!params.size) state.overallTotal = payload.count;
     renderRecords();
   } catch (error) {
@@ -635,7 +612,6 @@ async function refreshRecordsInBackground() {
     const [payload, filterOptions] = await Promise.all([api(`/api/records${suffix}`), api(`/api/filter-options${suffix}`)]);
     if (requestId !== state.requestId || filterKey !== currentFilters().toString() || document.querySelector("dialog[open]")) return;
     state.records = payload.records;
-    state.pendingUpdates = payload.pendingUpdates;
     state.recordFilterOptions = filterOptions;
     renderRecordFilterOptions();
     if (!filterKey) state.overallTotal = payload.count;
@@ -1598,11 +1574,6 @@ function closeOnBackdropClick(dialog, closeHandler) {
 }
 
 function setupEvents() {
-  elements.showUpdatedRecords.addEventListener("click", () => {
-    const pending = elements.filterAtualizacoes.querySelector('input[value="Pendentes"]');
-    pending.checked = !pending.checked;
-    pending.dispatchEvent(new Event("change", { bubbles: true }));
-  });
   elements.sortButton.addEventListener("click", () => setSortMenuOpen(elements.sortOptions.hidden));
   elements.sortOptions.addEventListener("change", event => {
     if (!Object.hasOwn(recordSortOptions, event.target.value)) return;

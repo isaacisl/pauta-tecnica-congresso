@@ -1039,27 +1039,6 @@ tbody tr:hover td:last-child {
   box-shadow: 0 0 0 3px #fbeae8;
 }
 
-.updates-overview {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
-  padding: 16px 20px;
-  border: 1px solid #dfbb67;
-  border-left: 5px solid #d69a00;
-  border-radius: 12px;
-  background: #fff8e6;
-  color: #754700;
-}
-.updates-overview-icon { display: grid; place-items: center; }
-.updates-overview-icon svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.updates-overview-copy h2 { margin: 0; color: #653c00; font-size: 16px; font-weight: 750; }
-.updates-overview-copy p { margin: 4px 0 0; font-size: 13px; line-height: 1.45; }
-.updates-overview-action { border-color: #aa6b08; background: #fff; color: #754700; white-space: nowrap; }
-.updates-overview-action:hover { border-color: #754700; background: #ffedb7; }
-.updates-overview.is-empty { border-color: var(--line-strong); background: var(--surface-soft); color: var(--muted); }
-.updates-overview.is-empty h2 { color: var(--ink); }
 .project-cell-content.has-update-badge { align-items: flex-start; flex-direction: column; gap: 7px; }
 .project-cell-content.has-update-badge > .cell-truncate { max-width: 100%; }
 .update-badge {
@@ -1084,10 +1063,6 @@ tbody tr:hover td:last-child {
 .records-table tr.has-pending-updates:hover > td { background: #fff3d4; }
 
 @media (max-width: 640px) {
-  .updates-overview { grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 14px; }
-  .updates-overview-copy h2 { font-size: 15px; }
-  .updates-overview-copy p { font-size: 12px; }
-  .updates-overview-action { grid-column: 1 / -1; width: 100%; }
   .records-table tr.has-pending-updates { border-color: #dfbb67; border-left: 4px solid #d69a00; background: #fffaf0; }
   .records-table tr.has-pending-updates > td:first-child { box-shadow: none; }
 }
