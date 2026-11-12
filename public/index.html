@@ -6,7 +6,7 @@
     <meta name="description" content="Pauta Técnica da Confederação Nacional de Municípios. Acompanhamento legislativo e posicionamentos das áreas técnicas." />
     <meta name="theme-color" content="#004587" />
     <title>Pauta Técnica | CNM</title>
-    <link rel="stylesheet" href="/styles.css?v=20261112-1" />
+    <link rel="stylesheet" href="/styles.css?v=20261112-2" />
     <link rel="stylesheet" href="/record-import.css?v=20261103-1" />
   </head>
   <body>
@@ -536,7 +536,7 @@
       </div>
     </dialog>
 
-    <dialog id="export-dialog" class="record-dialog export-dialog" aria-labelledby="export-dialog-title">
+    <dialog id="export-dialog" class="record-dialog access-dialog" aria-labelledby="export-dialog-title">
       <form id="export-form" novalidate>
         <div class="dialog-header">
           <div>
@@ -549,16 +549,14 @@
           </button>
         </div>
         <div class="dialog-body">
-          <div class="export-lock" aria-hidden="true">
+          <div class="access-lock" aria-hidden="true">
             <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
           </div>
           <label class="field">
             <span>Senha para exportação <b aria-hidden="true">*</b></span>
-            <input id="export-password" name="password" type="password" autocomplete="current-password" placeholder="Digite a senha" required />
-            <small id="export-password-error" class="field-error"></small>
+            <input id="export-password" name="password" type="password" autocomplete="current-password" placeholder="Digite a senha" required aria-describedby="export-password-error" />
+            <small id="export-password-error" class="field-error" role="alert"></small>
           </label>
-          <p id="export-scope" class="export-scope"></p>
-          <p class="export-scope">A planilha não inclui documentos ou histórico e não substitui um backup.</p>
         </div>
         <div class="dialog-footer">
           <span class="footer-spacer"></span>
@@ -578,6 +576,6 @@
       <span id="toast-message"></span>
     </div>
 
-    <script type="module" src="/app.js?v=20261112-1"></script>
+    <script type="module" src="/app.js?v=20261112-2"></script>
   </body>
 </html>

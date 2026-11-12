@@ -16,11 +16,33 @@ const examples = [
 
 export function initializeRecordImport({ parameters, api, uploadAttachment, onImported, available }) {
   document.body.insertAdjacentHTML("beforeend", `
-  <dialog id="import-access-dialog" class="record-dialog export-dialog" aria-labelledby="import-access-title">
+  <dialog id="import-access-dialog" class="record-dialog access-dialog" aria-labelledby="import-access-title">
     <form id="import-access-form">
-      <header class="dialog-header"><div><h2 id="import-access-title">Importar dados</h2><p>Use a mesma senha da exportação para continuar.</p></div><button id="import-access-close" type="button" class="icon-button" aria-label="Fechar">✕</button></header>
-      <div class="dialog-body"><label class="field"><span>Senha</span><input id="import-password" type="password" autocomplete="current-password" placeholder="Digite a senha" required aria-describedby="import-password-error"/><small id="import-password-error" class="field-error" role="alert"></small></label></div>
-      <footer class="dialog-footer"><button id="import-access-cancel" type="button" class="button button-secondary">Cancelar</button><button id="import-authorize" type="submit" class="button button-primary">Continuar</button></footer>
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Acesso protegido</p>
+          <h2 id="import-access-title">Importar dados</h2>
+          <p>Informe a senha de autorização para importar os registros.</p>
+        </div>
+        <button id="import-access-close" type="button" class="icon-button" aria-label="Fechar">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </header>
+      <div class="dialog-body">
+        <div class="access-lock" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
+        </div>
+        <label class="field">
+          <span>Senha para importação <b aria-hidden="true">*</b></span>
+          <input id="import-password" type="password" autocomplete="current-password" placeholder="Digite a senha" required aria-describedby="import-password-error"/>
+          <small id="import-password-error" class="field-error" role="alert"></small>
+        </label>
+      </div>
+      <footer class="dialog-footer">
+        <span class="footer-spacer"></span>
+        <button id="import-access-cancel" type="button" class="button button-ghost">Cancelar</button>
+        <button id="import-authorize" type="submit" class="button button-primary">Autorizar e continuar</button>
+      </footer>
     </form>
   </dialog>
   <dialog id="import-dialog" class="record-dialog import-dialog" aria-labelledby="import-title">
@@ -501,6 +523,7 @@ export function initializeRecordImport({ parameters, api, uploadAttachment, onIm
     if (dialog.open || access.open) return;
     if (!available) { await ask("Reinicie o serviço da Pauta Técnica e recarregue esta página para habilitar a importação.", true); return; }
     accessVersion++; $("import-password").value = ""; $("import-password-error").textContent = ""; $("import-authorize").disabled = false; access.showModal();
+    requestAnimationFrame(() => $("import-password").focus());
   });
   document.getElementById("import-button").disabled = false;
 }

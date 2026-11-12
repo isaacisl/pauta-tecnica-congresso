@@ -96,7 +96,7 @@ Depois, abra [http://127.0.0.1:3000](http://127.0.0.1:3000) no navegador. Para e
 
 ### Importação de acompanhamentos
 
-O botão **Importar planilha** solicita a mesma senha da exportação antes de abrir as três etapas: planilha, conferência e importação. A validação ocorre também no servidor para ler a planilha e gravar cada acompanhamento. A senha fica somente na memória do lote aberto e é descartada ao fechá-lo. Aceita `.xlsx` sem macros/senha e `.csv` UTF-8, até 8 MB, 500 linhas de dados por aba e 60 colunas.
+O botão **Importar planilha** solicita a mesma senha da exportação antes de abrir as três etapas: planilha, conferência e importação. As duas janelas de senha compartilham o layout de acesso protegido, com cabeçalho, ícone de cadeado, campo obrigatório e ações no rodapé. A janela de exportação apresenta somente a autorização, sem avisos de quantidade de registros ou conteúdo da planilha. A validação ocorre também no servidor para ler a planilha e gravar cada acompanhamento. A senha fica somente na memória do lote aberto e é descartada ao fechá-lo. Aceita `.xlsx` sem macros/senha e `.csv` UTF-8, até 8 MB, 500 linhas de dados por aba e 60 colunas.
 
 O modelo CSV baixado contém **Projeto, Prioridade, Parecer elaborado, Sugestão de emenda e Posicionamento**, com quatro exemplos fictícios de PL no ano futuro 2099. Substitua os exemplos pelos projetos reais antes de importar. Área técnica e responsável não são colunas de importação: ambos são escolhidos no sistema. A tabela do tutorial usa os mesmos exemplos, que não são cadastrados automaticamente.
 

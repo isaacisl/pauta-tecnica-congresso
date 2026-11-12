@@ -6,7 +6,7 @@ import { documentMetadataErrors } from "./document-utils.js?v=20261015-1";
 import { initializeDocumentInfo } from "./document-info.js?v=20261015-1";
 import { recordSortOptions, sortRecords } from "./record-sort.js?v=20261111-2";
 import { chartColor, chartSeries, donutBackground, groupAreaPositions, areaChartRows } from "./totals-charts.js?v=20261030-1";
-import { initializeRecordImport } from "./record-import.js?v=20261111-1";
+import { initializeRecordImport } from "./record-import.js?v=20261112-2";
 import { matchingPropositionTypes } from "./proposition-type-utils.js?v=20261001-1";
 import { initializeDocumentPreview, supportsDocumentPreview } from "./document-preview.js?v=20261002-3";
 import { canonicalArea, canonicalResponsible, responsibleOptions, retainedResponsible, validAssignmentArea } from "./team-utils.js?v=20261111-1";
@@ -149,7 +149,6 @@ const elements = {
   exportForm: document.querySelector("#export-form"),
   exportPassword: document.querySelector("#export-password"),
   exportPasswordError: document.querySelector("#export-password-error"),
-  exportScope: document.querySelector("#export-scope"),
   closeExportDialog: document.querySelector("#close-export-dialog"),
   cancelExportDialog: document.querySelector("#cancel-export-dialog"),
   confirmExport: document.querySelector("#confirm-export"),
@@ -1476,11 +1475,6 @@ function openExportDialog() {
   elements.exportForm.reset();
   elements.exportPassword.classList.remove("is-invalid");
   elements.exportPasswordError.textContent = "";
-  const filtered = hasActiveFilters();
-  const count = state.records.length;
-  elements.exportScope.textContent = filtered
-    ? `A exportação incluirá ${countText(count)} correspondentes aos filtros atuais.`
-    : `A exportação incluirá a base completa com ${countText(count)}.`;
   elements.exportDialog.showModal();
   requestAnimationFrame(() => elements.exportPassword.focus());
 }

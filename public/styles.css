@@ -1511,7 +1511,7 @@ td:nth-child(2) .cell-truncate {
   animation: dialog-in 180ms ease-out;
 }
 
-.export-dialog {
+.access-dialog {
   width: min(470px, calc(100% - 30px));
 }
 
@@ -1557,12 +1557,12 @@ td:nth-child(2) .cell-truncate {
   line-height: 1.55;
 }
 
-.export-dialog .dialog-body {
+.access-dialog .dialog-body {
   display: grid;
   gap: 18px;
 }
 
-.export-lock {
+.access-lock {
   display: grid;
   width: 48px;
   height: 48px;
@@ -1572,7 +1572,7 @@ td:nth-child(2) .cell-truncate {
   color: var(--brand);
 }
 
-.export-lock svg {
+.access-lock svg {
   width: 25px;
   height: 25px;
   fill: none;
@@ -1580,15 +1580,6 @@ td:nth-child(2) .cell-truncate {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.7;
-}
-
-.export-scope {
-  margin: -3px 0 0;
-  padding: 10px 12px;
-  border-radius: 9px;
-  background: #f3f7f5;
-  color: var(--muted);
-  font-size: 11px;
 }
 
 @keyframes dialog-in {
@@ -1601,6 +1592,8 @@ td:nth-child(2) .cell-truncate {
   max-height: min(880px, calc(100vh - 30px));
   grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
+
+.access-dialog form { grid-template-rows: auto minmax(0, 1fr) auto; }
 
 #record-form { min-width: 0; grid-template-columns: minmax(0, 1fr); }
 
